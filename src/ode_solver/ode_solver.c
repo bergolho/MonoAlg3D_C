@@ -10,6 +10,8 @@
 
 #ifdef COMPILE_CUDA
 #include "../gpu_utils/gpu_utils.h"
+#elif defined(COMPILE_SYCL)
+#include "../gpu_utils/sycl_utils.h"
 #endif
 
 #include "../3dparty/sds/sds.h"

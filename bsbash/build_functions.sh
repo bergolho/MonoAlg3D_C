@@ -370,19 +370,6 @@ COMPILE_OBJECT () {
 	fi
 
 	if [ -n "$IS_SYCL" ] && [[ $SRC_FILE == *.cpp ]]; then
-		# ------------------------------------------------------------
-		# -fsycl-targets=
-		# spir64 (generic SPIR target for OpenCL or Vulkan devices)
-		# spir64_gen (Intel GPUs).
-		# spir64_x86_64 (generic x86_64 CPU target for SPIR)
-		# nvptx64-nvidia-cuda (NVIDIA CUDA-based GPU target)
-		# amdgcn-amd-amdhsa (AMD GPU target using ROCm)
-		# ------------------------------------------------------------
-		# TODO: Here we might have a problem ...
-			#		To work with NVIDIA GPUs, SYCL needs to pass an additional flag '-fsycl-targets' at compilation
-			#		Option 1) Have a variable USE_GPU in the "build_functions.sh" for that
-			#		Option 2) Build two binaries, one for SYCL-cpu and another for SYCL-gpu (NVIDIA).
-			#		Option 3) Build only the SYCL-gpu and consider the OpenMP version when using CPU.
 		#MY_C_FLAGS="-fsycl ${MY_C_FLAGS}"
 		MY_C_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda ${MY_C_FLAGS}"
 	fi
@@ -444,6 +431,8 @@ COMPILE_STATIC_LIB () {
 	local SOURCES=$2
 	local HEADERS=$3
 	local EXTRA_C_FLAGS=$4
+	local IS_CUDA=$5
+	local IS_SYCL=$6
 
 	local BUILD_DIR=$ROOT_DIR/${DEFAULT_BUILD_DIR}${BUILD_TYPE}/$LIB_NAME
 	local LIB_PATH=$BUILD_DIR/$LIB_NAME.a
@@ -468,7 +457,7 @@ COMPILE_STATIC_LIB () {
 		OBJ_FILE=$BUILD_DIR/objs/${OBJ_FILE}.o
 		OBJECTS+=("$OBJ_FILE")
 
-		COMPILE_OBJECT "${PWD}/$s" "$OBJ_FILE" "$EXTRA_C_FLAGS -fPIC" "$FORCE_COMPILATION"
+		COMPILE_OBJECT "${PWD}/$s" "$OBJ_FILE" "$EXTRA_C_FLAGS -fPIC" "$FORCE_COMPILATION" "$IS_CUDA" "$IS_SYCL"
 
 		if [ -z "$ANY_COMPILED_LOCAL" ]; then
 			ANY_COMPILED_LOCAL=$ANY_COMPILED
@@ -560,7 +549,7 @@ COMPILE_SHARED_LIB () {
 	if [ -n "$ANY_COMPILED_LOCAL" ]; then
 		PRINT_INFO "LINKING SHARED LIB $LIB_NAME"
 
-		ALL_FLAGS="-fsycl -fPIC $C_FLAGS -shared -o $LIB_PATH ${OBJECTS[*]} ${STATIC_DEPS[*]} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]}"
+		ALL_FLAGS="$C_FLAGS -shared -o $LIB_PATH ${OBJECTS[*]} ${STATIC_DEPS[*]} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]}"
 		if [ -n "$IS_SYCL" ]; then
 			# TODO: Here we might have a problem ...
 			#		To work with NVIDIA GPUs, SYCL needs to pass an additional flag '-fsycl-targets' at compilation

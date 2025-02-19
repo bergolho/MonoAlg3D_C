@@ -10,7 +10,7 @@
 static dpct::constant_memory<size_t, 0> pitch;
 size_t pitch_h;
 
-// TODO: Move this struct to the "gpu_utils/accel_utils.h" header
+// TODO: Move this struct to the "gpu_utils/sycl_utils.h" header
 struct sycl_manager {
     sycl::queue queue;
     dpct::device_ext *dev_ct1;
@@ -127,6 +127,7 @@ void solve_model_ode_sycl(real dt, real *sv, real stim_current)
         sv[i] = dt*rDY[i] + rY[i];
 }
 
+// Remember to use: sycl::pow, sycl::exp, ...
 void RHS_sycl(const real *sv, real *rDY_, real stim_current)
 {
 
@@ -143,7 +144,7 @@ void RHS_sycl(const real *sv, real *rDY_, real stim_current)
 
     // Algebraics
     real J_stim = stim_current;
-    real J_in = ( h*( pow(V, 2.00000)*(1.00000 - V)))/tau_in;
+    real J_in = ( h*( sycl::pow(V, 2.00000)*(1.00000 - V)))/tau_in;
     real J_out = - (V/tau_out);
 
     // Rates

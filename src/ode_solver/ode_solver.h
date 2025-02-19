@@ -15,6 +15,11 @@ extern "C" {
     #include "../logger/logger.h"
     #include "../config_helpers/config_helpers.h"
 };
+#elif defined(__SYCLCC__)
+extern "C" {
+    #include "../logger/logger.h"
+    #include "../config_helpers/config_helpers.h"
+};
 #else
 #include "../logger/logger.h"
 #include "../config_helpers/config_helpers.h"

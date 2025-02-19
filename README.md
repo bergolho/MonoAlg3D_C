@@ -66,6 +66,20 @@ $ . /opt/intel/oneapi/setvars.sh --include-intel-llvm
 
 ### Compile
 
+#### CUDA version
+
+```sh
+$ ./build.sh -f
+```
+
+#### OpenMP version
+
+```sh
+$ ./build.sh -f only_cpu
+```
+
+#### SYCL version
+
 ```sh
 $ ./build.sh -f sycl
 ```

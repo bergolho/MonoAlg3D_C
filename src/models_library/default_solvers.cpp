@@ -1,12 +1,4 @@
-GET_CELL_MODEL_DATA(init_cell_model_data) {
-
-    if(get_initial_v)
-    cell_model->initial_v = INITIAL_V;
-    if(get_neq)
-    cell_model->number_of_ode_equations = NEQ;
-}
-
-SOLVE_MODEL_ODES(solve_model_odes_cpu) {
+extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
 
     uint32_t sv_id;
 
