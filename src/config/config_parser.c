@@ -282,6 +282,9 @@ struct user_options *new_user_options() {
     user_args->gpu = false;
     user_args->gpu_was_set = false;
 
+    user_args->use_sycl = false;
+    user_args->sycl_was_set = false;
+
     user_args->final_time = 10.0;
     user_args->final_time_was_set = false;
 
@@ -1656,8 +1659,21 @@ int parse_config_file(void *user, const char *section, const char *name, const c
             pconfig->auto_dt_ode = IS_TRUE(value);
             pconfig->auto_dt_ode_was_set = true;
         } else if(MATCH_NAME("use_gpu")) {
-            pconfig->gpu = IS_TRUE(value);
+            if (IS_TRUE(value)) {
+                pconfig->gpu = true;
+            }
+            else {
+                pconfig->gpu = false;
+            }
             pconfig->gpu_was_set = true;
+        } else if(MATCH_NAME("use_sycl")) {
+            if (IS_TRUE(value)) {
+                pconfig->use_sycl = true;
+            }
+            else {
+                pconfig->use_sycl = false;
+            }
+            pconfig->sycl_was_set = true;
         } else if(MATCH_NAME("gpu_id")) {
             log_warn("The gpu_id option is being moved to the [main] section. Please update your config files!\n");
             parse_expr_and_set_int_value(pconfig->config_file, value, &pconfig->gpu_id, &pconfig->gpu_id_was_set);

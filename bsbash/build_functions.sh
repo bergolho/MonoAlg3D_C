@@ -337,7 +337,7 @@ COMPILE_EXECUTABLE () {
 
 		local MY_C_FLAGS="$C_FLAGS $EXTRA_C_FLAGS"
 
-		local COMPILER_COMMAND="gcc $MY_C_FLAGS $SOURCES ${STATIC_DEPS[*]}  -o $BUILD_DIR/${EXECUTABLE_NAME} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]} -Wl,-rpath=$LIBRARY_OUTPUT_DIRECTORY"
+		local COMPILER_COMMAND="${C_COMPILER} $MY_C_FLAGS $SOURCES ${STATIC_DEPS[*]}  -o $BUILD_DIR/${EXECUTABLE_NAME} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]} -Wl,-rpath=$LIBRARY_OUTPUT_DIRECTORY"
 
 		ECHO_AND_EXEC_COMMAND "${COMPILER_COMMAND}"
 		touch "$TIME_FILE"
@@ -357,6 +357,7 @@ COMPILE_OBJECT () {
 	local MY_C_FLAGS="$C_FLAGS $3"
 	local FORCE_COMPILATION=$4
 	local IS_CUDA=$5
+	local IS_SYCL=$6
 
 	local COMPILER=$C_COMPILER
 
@@ -366,6 +367,24 @@ COMPILE_OBJECT () {
 		COMPILER=$NVCC
 	elif [[ $SRC_FILE == *.cpp ]] || [[ $SRC_FILE == *.cxx ]]; then
 		COMPILER=$CXX_COMPILER
+	fi
+
+	if [ -n "$IS_SYCL" ] && [[ $SRC_FILE == *.cpp ]]; then
+		# ------------------------------------------------------------
+		# -fsycl-targets=
+		# spir64 (generic SPIR target for OpenCL or Vulkan devices)
+		# spir64_gen (Intel GPUs).
+		# spir64_x86_64 (generic x86_64 CPU target for SPIR)
+		# nvptx64-nvidia-cuda (NVIDIA CUDA-based GPU target)
+		# amdgcn-amd-amdhsa (AMD GPU target using ROCm)
+		# ------------------------------------------------------------
+		# TODO: Here we might have a problem ...
+			#		To work with NVIDIA GPUs, SYCL needs to pass an additional flag '-fsycl-targets' at compilation
+			#		Option 1) Have a variable USE_GPU in the "build_functions.sh" for that
+			#		Option 2) Build two binaries, one for SYCL-cpu and another for SYCL-gpu (NVIDIA).
+			#		Option 3) Build only the SYCL-gpu and consider the OpenMP version when using CPU.
+		#MY_C_FLAGS="-fsycl ${MY_C_FLAGS}"
+		MY_C_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda ${MY_C_FLAGS}"
 	fi
 
 	COMPILER_COMMAND=''
@@ -477,6 +496,7 @@ COMPILE_SHARED_LIB () {
 	local EXTRA_LIB_PATH_LIST=$6
 	local EXTRA_C_FLAGS=$7
 	local IS_CUDA=$8
+	local IS_SYCL=$9
 
 	local STATIC_DEPS=()
 
@@ -524,14 +544,14 @@ COMPILE_SHARED_LIB () {
 		OBJ_FILE=$BUILD_DIR/objs/${OBJ_FILE}.o
 		OBJECTS+=("$OBJ_FILE")
 
-		COMPILE_OBJECT "${PWD}/$s" "$OBJ_FILE" "${EXTRA_C_FLAGS} -fPIC" "$FORCE_COMPILATION" "$IS_CUDA"
+		COMPILE_OBJECT "${PWD}/$s" "$OBJ_FILE" "${EXTRA_C_FLAGS} -fPIC" "$FORCE_COMPILATION" "$IS_CUDA" "$IS_SYCL"
 
 		if [ -z "$ANY_COMPILED_LOCAL" ]; then
 			ANY_COMPILED_LOCAL=$ANY_COMPILED
 		fi
 	done
 
-	if [ -n "$IS_CUDA" ]; then
+	if [[ -n "$IS_CUDA" ]] || [[ -n $IS_SYCL ]]; then
 		LINKER=$CXX_COMPILER
 	else
 		LINKER=$C_COMPILER
@@ -540,7 +560,15 @@ COMPILE_SHARED_LIB () {
 	if [ -n "$ANY_COMPILED_LOCAL" ]; then
 		PRINT_INFO "LINKING SHARED LIB $LIB_NAME"
 
-		ALL_FLAGS="-fPIC $C_FLAGS -shared -o $LIB_PATH ${OBJECTS[*]} ${STATIC_DEPS[*]} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]}"
+		ALL_FLAGS="-fsycl -fPIC $C_FLAGS -shared -o $LIB_PATH ${OBJECTS[*]} ${STATIC_DEPS[*]} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]}"
+		if [ -n "$IS_SYCL" ]; then
+			# TODO: Here we might have a problem ...
+			#		To work with NVIDIA GPUs, SYCL needs to pass an additional flag '-fsycl-targets' at compilation
+			#		Option 1) Have a variable USE_GPU in the "build_functions.sh" for that
+			#		Option 2) Build two binaries, one for CPU-sycl and another for GPU-sycl (NVIDIA).
+			#ALL_FLAGS="-fsycl ${ALL_FLAGS}"
+			ALL_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda ${ALL_FLAGS}"
+		fi
 
 		ECHO_AND_EXEC_COMMAND "$LINKER $ALL_FLAGS"
 

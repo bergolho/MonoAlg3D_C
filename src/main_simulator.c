@@ -159,10 +159,12 @@ int main(int argc, char **argv) {
     configure_simulation(argc, argv, &options, &monodomain_solver, &ode_solver, &the_grid);
 
 #ifndef COMPILE_CUDA
+    #ifndef COMPILE_SYCL
     if(ode_solver->gpu) {
         log_warn("MonoAlg3D was not compiled with CUDA support. Falling back to CPU solver!!\n");
         ode_solver->gpu = false;
     }
+    #endif
 #endif
 
 #ifndef COMPILE_GUI

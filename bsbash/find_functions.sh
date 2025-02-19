@@ -133,3 +133,19 @@ FIND_AMGX() {
   AMGX_INCLUDE_PATH=""
   AMGX_FOUND=""
 }
+
+# TODO: On the Aurora supercomputer there is no need to execute the "setvars.sh"
+#	   the SYCL enviroment variables are already on the PATH.
+FIND_SYCL() {
+  # SYCL related variables
+  SYCL_SETVARS_PATH="/opt/intel/oneapi/setvars.sh"
+  if [ ! -f "$SYCL_SETVARS_PATH" ]; then
+	PRINT_WARN "SYCL_SETVARS_PATH variable is empty. SYCL code will not be compiled!"
+  else
+	echo "Configuring SYCL enviroment ..."
+	. ${SYCL_SETVARS_PATH} --include-intel-llvm --force
+	SYCL_FOUND="y"
+	SYCL_INCLUDE_PATH="/opt/intel/oneapi/compiler/2025.0/include"
+	ICPX=$(which icpx)
+  fi
+}

@@ -96,6 +96,8 @@ struct user_options {
     bool gpu_id_was_set;
     bool abort_no_activity;         /*-b option*/
     bool abort_no_activity_was_set;
+    bool use_sycl;
+    bool sycl_was_set;
 
     real_cpu only_abort_after_dt;
     bool only_abort_after_dt_was_set;

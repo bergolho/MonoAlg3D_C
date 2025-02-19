@@ -39,6 +39,7 @@ COMPILE_SIMULATOR=''
 COMPILE_POSTPROCESSOR=''
 COMPILE_WITH_DDM=''
 DISABLE_CUDA=''
+USE_SYCL=''
 
 GET_BUILD_OPTIONS "$@"
 
@@ -101,8 +102,14 @@ for i in "${BUILD_ARGS[@]}"; do
         converter)
             COMPILE_CONVERTER='y'
             ;;
-        disable_cuda)
+        only_cpu)
+            COMPILE_SIMULATOR='y'
             DISABLE_CUDA='y'
+            ;;
+        sycl)
+            COMPILE_SIMULATOR='y'
+            DISABLE_CUDA='y'
+            USE_SYCL='y'
             ;;
         *)
             echo "Invalid option $i. Aborting!"
@@ -112,6 +119,14 @@ for i in "${BUILD_ARGS[@]}"; do
 done
 
 DEFAULT_C_FLAGS="-fopenmp -std=gnu99 -fno-strict-aliasing  -Wall -Wno-stringop-truncation -Wno-unused-function -Wno-char-subscripts -Wno-unused-result -Wno-switch -Werror=implicit-function-declaration"
+
+# Update the SYCL compiler and Intel flags
+if [ -n "$USE_SYCL" ]; then
+    C_COMPILER="icx"
+    CXX_COMPILER="icpx"
+    DEFAULT_C_FLAGS="-qopenmp -fno-strict-aliasing  -Wall -Wno-unused-function -Wno-unused-result -Wno-switch -Werror=implicit-function-declaration"
+fi
+
 RUNTIME_OUTPUT_DIRECTORY="$ROOT_DIR/bin"
 LIBRARY_OUTPUT_DIRECTORY="$ROOT_DIR/shared_libs"
 
@@ -127,6 +142,10 @@ if [ -n "$COMPILE_SIMULATOR" ] || [ -n "$COMPILE_MPI" ]; then
        FIND_CUDA
     fi
 
+    if [ -n "$USE_SYCL" ]; then
+       FIND_SYCL
+    fi
+
     echo -e "${INFO}C compiler:${NC} $C_COMPILER"
     echo -e "${INFO}C++ compiler:${NC} $CXX_COMPILER"
 
@@ -137,6 +156,13 @@ if [ -n "$COMPILE_SIMULATOR" ] || [ -n "$COMPILE_MPI" ]; then
 
 
         C_FLAGS="${C_FLAGS} -DCOMPILE_CUDA -I${CUDA_INCLUDE_PATH}"
+
+    fi
+
+    if [ -n "$SYCL_FOUND" ]; then
+        echo -e "${INFO}SYCL compiler:${NC} ${ICPX}"
+
+        C_FLAGS="${C_FLAGS} -DCOMPILE_SYCL -I${SYCL_INCLUDE_PATH}"
 
     fi
 fi

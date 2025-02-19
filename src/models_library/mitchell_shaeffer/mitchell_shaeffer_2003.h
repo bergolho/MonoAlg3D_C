@@ -22,6 +22,13 @@ inline __device__ void RHS_gpu(real *sv_, real *rDY_, real stim_current, int thr
 
 #endif
 
+#ifdef COMPILE_SYCL
+
+void solve_model_ode_sycl (real dt, real *sv, real stim_current);
+void RHS_sycl (const real *sv, real *rDY_, real stim_current);
+
+#endif
+
 void solve_model_ode_cpu(real dt, real *sv, real stim_current);
 void RHS_cpu(const real *sv, real *rDY_, real stim_current);
 

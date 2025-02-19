@@ -10,6 +10,10 @@
 #include "../gpu_utils/gpu_utils.h"
 #endif
 
+//#ifdef COMPILE_SYCL
+//#include "../gpu_utils/accel_utils.h"
+//#endif
+
 #include "../3dparty/stb_ds.h"
 #include "../config/modify_current_domain_config.h"
 #include "../config/stim_config.h"

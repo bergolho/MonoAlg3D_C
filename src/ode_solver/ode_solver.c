@@ -29,6 +29,9 @@ struct ode_solver *new_ode_solver() {
     result->set_ode_initial_conditions_gpu = NULL;
     result->solve_model_ode_gpu = NULL;
 
+    result->set_ode_initial_conditions_sycl = NULL;
+    result->solve_model_ode_sycl = NULL;
+
     result->model_data.initial_v = INFINITY;
     result->model_data.number_of_ode_equations = -1;
     result->model_data.model_library_path = NULL;
@@ -125,6 +128,22 @@ void init_ode_solver_with_cell_model(struct ode_solver *solver) {
         exit(1);
     }
 #endif
+
+#ifdef COMPILE_SYCL
+    solver->set_ode_initial_conditions_sycl = dlsym(solver->handle, "set_model_initial_conditions_sycl");
+    if((error = dlerror()) != NULL) {
+        fputs(error, stderr);
+        fprintf(stderr, "set_model_initial_conditions_sycl function not found in the provided model library\n");
+        exit(1);
+    }
+
+    solver->solve_model_ode_sycl = dlsym(solver->handle, "solve_model_odes_sycl");
+    if((error = dlerror()) != NULL) {
+        fputs(error, stderr);
+        fprintf(stderr, "\nsolve_model_odes_sycl function not found in the provided model library\n");
+        exit(1);
+    }
+#endif
 }
 
 void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struct string_hash_entry *ode_extra_config) {
@@ -134,34 +153,57 @@ void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struc
 
     (*(solver->get_cell_model_data))(&(solver->model_data), get_initial_v, get_neq);
 
-    if(solver->gpu) {
-#ifdef COMPILE_CUDA
+    if (!solver->use_sycl) {
+        // CUDA/OpenMP code
+        if(solver->gpu) {
+    #ifdef COMPILE_CUDA
+            set_ode_initial_conditions_gpu_fn *soicg_fn_pt = solver->set_ode_initial_conditions_gpu;
 
-        set_ode_initial_conditions_gpu_fn *soicg_fn_pt = solver->set_ode_initial_conditions_gpu;
+            if(!soicg_fn_pt) {
+                fprintf(stderr,
+                        "The ode solver was set to use the GPU, \n "
+                        "but no function called set_model_initial_conditions_gpu "
+                        "was provided in the %s shared library file\n",
+                        solver->model_data.model_library_path);
+                exit(11);
+            }
 
-        if(!soicg_fn_pt) {
-            fprintf(stderr,
-                    "The ode solver was set to use the GPU, \n "
-                    "but no function called set_model_initial_conditions_gpu "
-                    "was provided in the %s shared library file\n",
-                    solver->model_data.model_library_path);
-            exit(11);
+            if(solver->sv != NULL) {
+                check_cuda_error(cudaFree(solver->sv));
+            }
+
+            solver->pitch = soicg_fn_pt(solver, ode_extra_config);
+    #endif
+        } else {
+
+            set_ode_initial_conditions_cpu_fn *soicc_fn_pt = solver->set_ode_initial_conditions_cpu;
+
+            if(!soicc_fn_pt) {
+                fprintf(stderr,
+                        "The ode solver was set to use the CPU, \n "
+                        "but no function called set_model_initial_conditions_cpu "
+                        "was provided in the %s shared library file\n",
+                        solver->model_data.model_library_path);
+                exit(11);
+            }
+
+            if(solver->sv != NULL) {
+                free(solver->sv);
+            }
+
+            // We do not malloc here sv anymore. This have to be done in the model solver
+            soicc_fn_pt(solver, ode_extra_config);
         }
+    }
+    // SYCL code
+    else {
+    #ifdef COMPILE_SYCL
+        set_ode_initial_conditions_sycl_fn *soics_fn_pt = solver->set_ode_initial_conditions_sycl;
 
-        if(solver->sv != NULL) {
-            check_cuda_error(cudaFree(solver->sv));
-        }
-
-        solver->pitch = soicg_fn_pt(solver, ode_extra_config);
-#endif
-    } else {
-
-        set_ode_initial_conditions_cpu_fn *soicc_fn_pt = solver->set_ode_initial_conditions_cpu;
-
-        if(!soicc_fn_pt) {
+        if(!soics_fn_pt) {
             fprintf(stderr,
-                    "The ode solver was set to use the CPU, \n "
-                    "but no function called set_model_initial_conditions_cpu "
+                    "The ode solver was set to use SYCL, \n "
+                    "but no function called set_model_initial_conditions_sycl "
                     "was provided in the %s shared library file\n",
                     solver->model_data.model_library_path);
             exit(11);
@@ -172,9 +214,10 @@ void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struc
         }
 
         // We do not malloc here sv anymore. This have to be done in the model solver
-        soicc_fn_pt(solver, ode_extra_config);
+        soics_fn_pt(solver, ode_extra_config);
+    #endif
     }
-
+    
     if(solver->sv == NULL) {
         log_error_and_exit("Error allocating memory for the ODE's state vector. Exiting!\n");
     }
@@ -234,15 +277,26 @@ void solve_all_volumes_odes(struct ode_solver *the_ode_solver, real_cpu cur_time
         }
     }
 
-    if(the_ode_solver->gpu) {
-#ifdef COMPILE_CUDA
-        solve_model_ode_gpu_fn *solve_odes_fn = the_ode_solver->solve_model_ode_gpu;
+    if (!the_ode_solver->use_sycl) {
+        // CUDA/OpenMP code
+        if(the_ode_solver->gpu) {
+            #ifdef COMPILE_CUDA
+                solve_model_ode_gpu_fn *solve_odes_fn = the_ode_solver->solve_model_ode_gpu;
+                solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
+            #endif
+            } else {
+                solve_model_ode_cpu_fn *solve_odes_fn = the_ode_solver->solve_model_ode_cpu;
+                solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
+            }
+        }
+    else {
+        // SYCL code
+        #ifdef COMPILE_SYCL
+        solve_model_ode_sycl_fn *solve_odes_fn = the_ode_solver->solve_model_ode_sycl;
         solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
-#endif
-    } else {
-        solve_model_ode_cpu_fn *solve_odes_fn = the_ode_solver->solve_model_ode_cpu;
-        solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
+        #endif
     }
+    
 
     free(merged_stims);
 }
@@ -336,6 +390,7 @@ void configure_ode_solver_from_options(struct ode_solver *solver, struct user_op
     }
 
     solver->gpu = options->gpu;
+    solver->use_sycl = options->use_sycl;
 
     if(options->model_file_path) {
         free(solver->model_data.model_library_path);
