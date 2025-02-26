@@ -60,7 +60,7 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     dpct::device_ext &dev_ct1 = dpct::get_current_device();
     sycl::queue &q_ct1 = dev_ct1.default_queue();
 
-    sycl::buffer<real, 2> sv_buf(sv, sycl::range<2>(num_cells_to_solve, NEQ));
+    sycl::buffer<real, 2> sv_buf(ode_solver->sv, sycl::range<2>(num_cells_to_solve, NEQ));
     sycl::buffer<real, 1> stim_buf(stim_currents, sycl::range<1>(num_cells_to_solve));
 
     //const int BLOCK_SIZE = 32;

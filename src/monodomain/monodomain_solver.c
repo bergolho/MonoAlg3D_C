@@ -1026,41 +1026,52 @@ bool update_ode_state_vector_and_check_for_activity(real_cpu vm_threshold, struc
 
         real *sv = the_ode_solver->sv;
 
-        if(the_ode_solver->gpu) {
-#ifdef COMPILE_CUDA
-            uint32_t max_number_of_cells = the_ode_solver->original_num_cells;
-            real *vms;
-            size_t mem_size = max_number_of_cells * sizeof(real);
+        // CUDA/OpenMP code
+        if (!the_ode_solver->use_sycl) {
+            if(the_ode_solver->gpu) {
+            #ifdef COMPILE_CUDA
+                    uint32_t max_number_of_cells = the_ode_solver->original_num_cells;
+                    real *vms;
+                    size_t mem_size = max_number_of_cells * sizeof(real);
 
-            vms = (real *)malloc(mem_size);
+                    vms = (real *)malloc(mem_size);
 
-            if(the_grid->adaptive)
-                check_cuda_error(cudaMemcpy(vms, sv, mem_size, cudaMemcpyDeviceToHost));
+                    if(the_grid->adaptive)
+                        check_cuda_error(cudaMemcpy(vms, sv, mem_size, cudaMemcpyDeviceToHost));
 
-            OMP(parallel for)
-            for(uint32_t i = 0; i < n_active; i++) {
-                vms[ac[i]->sv_position] = (real)ac[i]->v;
+                    OMP(parallel for)
+                    for(uint32_t i = 0; i < n_active; i++) {
+                        vms[ac[i]->sv_position] = (real)ac[i]->v;
 
-                if(ac[i]->v > vm_threshold) {
-                    act = true;
+                        if(ac[i]->v > vm_threshold) {
+                            act = true;
+                        }
+                    }
+
+                    check_cuda_error(cudaMemcpy(sv, vms, mem_size, cudaMemcpyHostToDevice));
+                    free(vms);
+            #endif
+                } else {
+                    OMP(parallel for)
+                    for(uint32_t i = 0; i < n_active; i++) {
+                        sv[ac[i]->sv_position * n_odes] = (real)ac[i]->v;
+
+                        if(ac[i]->v > vm_threshold) {
+                            act = true;
+                        }
+                    }
                 }
             }
-
-            check_cuda_error(cudaMemcpy(sv, vms, mem_size, cudaMemcpyHostToDevice));
-            free(vms);
-#endif
-        } else {
-            OMP(parallel for)
-            for(uint32_t i = 0; i < n_active; i++) {
-                sv[ac[i]->sv_position * n_odes] = (real)ac[i]->v;
-
-                if(ac[i]->v > vm_threshold) {
-                    act = true;
+            // SYCL code
+            else {
+            #ifdef COMPILE_SYCL
+                for(uint32_t i = 0; i < n_active; i++) {
+                    sv[ac[i]->sv_position * n_odes] = (real)ac[i]->v;
                 }
+            #endif
             }
-        }
     }
-
+    
     if(the_purkinje_ode_solver) {
         // Purkinje section
         uint32_t n_active_purkinje = the_grid->purkinje->number_of_purkinje_cells;
@@ -1070,30 +1081,44 @@ bool update_ode_state_vector_and_check_for_activity(real_cpu vm_threshold, struc
 
         real *sv_purkinje = the_purkinje_ode_solver->sv;
 
-        if(the_purkinje_ode_solver->gpu) {
-#ifdef COMPILE_CUDA
-            uint32_t max_number_of_purkinje_cells = the_purkinje_ode_solver->original_num_cells;
-            real *vms_purkinje;
-            size_t mem_size_purkinje = max_number_of_purkinje_cells * sizeof(real);
+        // CUDA/OpenMP code
+        if (!the_purkinje_ode_solver->use_sycl) {
+            if(the_purkinje_ode_solver->gpu) {
+                #ifdef COMPILE_CUDA
+                        uint32_t max_number_of_purkinje_cells = the_purkinje_ode_solver->original_num_cells;
+                        real *vms_purkinje;
+                        size_t mem_size_purkinje = max_number_of_purkinje_cells * sizeof(real);
 
-            vms_purkinje = (real *)malloc(mem_size_purkinje);
+                        vms_purkinje = (real *)malloc(mem_size_purkinje);
 
-            if(the_grid->adaptive)
-                check_cuda_error(cudaMemcpy(vms_purkinje, sv_purkinje, mem_size_purkinje, cudaMemcpyDeviceToHost));
+                        if(the_grid->adaptive)
+                            check_cuda_error(cudaMemcpy(vms_purkinje, sv_purkinje, mem_size_purkinje, cudaMemcpyDeviceToHost));
 
-            OMP(parallel for)
-            for(uint32_t i = 0; i < n_active_purkinje; i++) {
-                vms_purkinje[ac_purkinje[i]->sv_position] = (real)ac_purkinje[i]->v;
+                        OMP(parallel for)
+                        for(uint32_t i = 0; i < n_active_purkinje; i++) {
+                            vms_purkinje[ac_purkinje[i]->sv_position] = (real)ac_purkinje[i]->v;
 
-                if(ac_purkinje[i]->v > vm_threshold) {
-                    act = true;
-                }
-            }
+                            if(ac_purkinje[i]->v > vm_threshold) {
+                                act = true;
+                            }
+                        }
 
-            check_cuda_error(cudaMemcpy(sv_purkinje, vms_purkinje, mem_size_purkinje, cudaMemcpyHostToDevice));
-            free(vms_purkinje);
-#endif
-        } else {
+                        check_cuda_error(cudaMemcpy(sv_purkinje, vms_purkinje, mem_size_purkinje, cudaMemcpyHostToDevice));
+                        free(vms_purkinje);
+                #endif
+                    } else {
+                        OMP(parallel for)
+                        for(uint32_t i = 0; i < n_active_purkinje; i++) {
+                            sv_purkinje[ac_purkinje[i]->sv_position * n_odes_purkinje] = (real)ac_purkinje[i]->v;
+
+                            if(ac_purkinje[i]->v > vm_threshold) {
+                                act = true;
+                            }
+                        }
+                    }            
+        }
+        // SYCL code
+        else {
             OMP(parallel for)
             for(uint32_t i = 0; i < n_active_purkinje; i++) {
                 sv_purkinje[ac_purkinje[i]->sv_position * n_odes_purkinje] = (real)ac_purkinje[i]->v;

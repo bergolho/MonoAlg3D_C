@@ -219,8 +219,8 @@ void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struc
 
         soics_fn_pt(solver, ode_extra_config);
     
-        printf("%lf %lf\n", solver->sv[0], solver->sv[1], solver->sv[solver->num_cells_to_solve-1]);
-        printf("%lf %lf\n", solver->sv[solver->num_cells_to_solve*1], solver->sv[solver->num_cells_to_solve*1+1]);
+        //printf("%lf %lf\n", solver->sv[0], solver->sv[1], solver->sv[solver->num_cells_to_solve-1]);
+        //printf("%lf %lf\n", solver->sv[solver->num_cells_to_solve*1], solver->sv[solver->num_cells_to_solve*1+1]);
     #endif
     }
 
@@ -300,12 +300,6 @@ void solve_all_volumes_odes(struct ode_solver *the_ode_solver, real_cpu cur_time
     #ifdef COMPILE_SYCL
         solve_model_ode_sycl_fn *solve_odes_fn = the_ode_solver->solve_model_ode_sycl;
         solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
-        //for (int i = 0; i < the_ode_solver->num_cells_to_solve; i++) {
-        //    if (merged_stims[i] > 0) {
-        //        printf("%d = %lf\n", i, merged_stims[i]);
-        //    }
-        //}
-        //printf("%lf %lf %lf\n", the_ode_solver->sv[0], the_ode_solver->sv[1], the_ode_solver->sv[the_ode_solver->num_cells_to_solve-1]);
     #endif
     }
     

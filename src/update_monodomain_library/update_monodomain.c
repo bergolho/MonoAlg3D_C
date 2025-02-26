@@ -20,6 +20,7 @@ UPDATE_MONODOMAIN(update_monodomain_default) {
 
     real_cpu alpha;
     bool use_gpu = the_ode_solver->gpu;
+    bool use_sycl = the_ode_solver->use_sycl;
 
     real_cpu beta = the_solver->beta;
     real_cpu cm = the_solver->cm;
@@ -42,12 +43,19 @@ UPDATE_MONODOMAIN(update_monodomain_default) {
     for(uint32_t i = 0; i < num_active_cells; i++) {
         alpha = ALPHA(beta, cm, dt_pde, active_cells[i]->discretization.x, active_cells[i]->discretization.y, active_cells[i]->discretization.z);
 
-        if(use_gpu) {
-            #ifdef COMPILE_CUDA
-            active_cells[i]->b = vms[active_cells[i]->sv_position] * alpha;
-            #endif
-        } else {
+        if (!use_sycl) {
+            if(use_gpu) {
+                #ifdef COMPILE_CUDA
+                active_cells[i]->b = vms[active_cells[i]->sv_position] * alpha;
+                #endif
+            } else {
+                active_cells[i]->b = sv[active_cells[i]->sv_position * n_equations_cell_model] * alpha;
+            }
+        }
+        else {
+            #ifdef COMPILE_SYCL
             active_cells[i]->b = sv[active_cells[i]->sv_position * n_equations_cell_model] * alpha;
+            #endif
         }
     }
     #ifdef COMPILE_CUDA
