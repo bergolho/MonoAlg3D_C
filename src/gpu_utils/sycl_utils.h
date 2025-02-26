@@ -9,19 +9,19 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+
+#define __SYCLCC__ 2
+
 #include "../common_types/common_types.h"
 
-// TODO: Big problem!
-//      How to compile this section inside a C file
-//      "ode_solver.c" will use this header.
 #ifdef COMPILE_SYCL 
-//#include <sycl/sycl.hpp>
-//#include <dpct/dpct.hpp>
+#include <sycl/sycl.hpp>
+#include <dpct/dpct.hpp>
 //#include <dpct/sparse_utils.hpp>
 //#include <dpct/blas_utils.hpp>
 #endif
 
-#define __SYCLCC__ 2
+void hello_sycl ();
 
 enum copy_direction {
     HOST_TO_DEVICE,
@@ -42,12 +42,36 @@ enum data_type {
     REAL_DOUBLE,
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-void malloc_device(void **ptr, size_t n);
-void free_device(void *ptr);
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
+//struct sycl_manager {
+//    sycl::queue queue;
+//    dpct::device_ext *dev_ct1;
+//
+//    void set_queue (const bool use_gpu) {
+//        int device_id;
+//        // GPU
+//        if (use_gpu) {
+//            device_id = 0;
+//        }
+//        // CPU
+//        else {
+//            device_id = 1;
+//        }   
+//        dev_ct1 = &dpct::get_device(device_id);
+//        queue = dev_ct1->in_order_queue();
+//    }
+//};
+//#ifdef __cplusplus
+//}
+//#endif
+
+
+void malloc_device_sycl(void **ptr, size_t n);
+void free_device_sycl(void *ptr);
 void memcpy_device(void *dest, const void *src, size_t n, enum copy_direction kind);
+/*
 void create_sparse_handle(void **handle);
 void create_blas_handle(void **handle);
 void sparse_create_scr(void *mat, int64_t rows, int64_t cols, int64_t nnz,
@@ -60,9 +84,7 @@ void sparse_create_scr(void *mat, int64_t rows, int64_t cols, int64_t nnz,
                        enum data_type         value_type);
 
 void create_dense_vector(void** descr, int64_t size, void *values, enum data_type valueType);
-#ifdef __cplusplus
-}
-#endif
+*/
 
 /*
 #ifdef COMPILE_SYCL

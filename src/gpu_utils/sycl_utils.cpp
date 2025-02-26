@@ -4,7 +4,12 @@
 
 #include "sycl_utils.h"
 
-extern "C" void malloc_device(void **ptr, size_t n) {
+void hello_sycl () {
+    printf("Hello world from SYCL library!\n");
+}
+
+
+void malloc_device_sycl(void **ptr, size_t n) {
 
 #ifdef COMPILE_SYCL
     DPCT_CHECK_ERROR(*ptr = sycl::malloc_device(n, dpct::get_in_order_queue()));
@@ -12,13 +17,14 @@ extern "C" void malloc_device(void **ptr, size_t n) {
 
 }
 
-extern "C" void free_device(void *ptr) {
+void free_device_sycl(void *ptr) {
 #ifdef COMPILE_SYCL
     DPCT_CHECK_ERROR(dpct::dpct_free(ptr, dpct::get_in_order_queue()));
 #endif
 }
 
-extern "C" void memcpy_device(void *dest, const void *src, size_t n, enum copy_direction kind) {
+
+void memcpy_device(void *dest, const void *src, size_t n, enum copy_direction kind) {
 
     if(kind == HOST_TO_DEVICE)  {
     #ifdef COMPILE_SYCL
@@ -35,6 +41,7 @@ extern "C" void memcpy_device(void *dest, const void *src, size_t n, enum copy_d
     }
 }
 
+/*
 extern "C" void create_sparse_handle(void **handle) {
 #ifdef COMPILE_SYCL
     DPCT_CHECK_ERROR(*handle = new dpct::sparse::descriptor());
@@ -135,3 +142,4 @@ extern "C" void blas_dot(void *handle, int n, real *x, int incx, real *y, int in
     *result = *res;
 #endif
 }
+*/

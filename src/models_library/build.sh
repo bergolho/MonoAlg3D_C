@@ -21,8 +21,8 @@ COMPILE_MODEL_LIB () {
 
     if [ -n "$SYCL_FOUND" ]; then
         MODELS_EXTRA_LIB_PATH=$SYCL_LIBRARY_PATH
-        MODELS_DYNAMIC_LIBS="c"
-
+        MODELS_DYNAMIC_LIBS=""
+    
         MODEL_SOURCES="$MODEL_SOURCES $MODEL_FILE_CPP"
         COMMON_HEADERS="$COMMON_HEADERS ../default_solvers.cpp"
     fi

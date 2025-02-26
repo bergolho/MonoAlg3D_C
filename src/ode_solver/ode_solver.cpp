@@ -53,7 +53,9 @@ void free_ode_solver(struct ode_solver *solver) {
             cudaFree(solver->sv);
 #endif
         } else {
-            free(solver->sv);
+#ifdef COMPILE_SYCL            
+            //free_device(solver->sv);
+#endif        
         }
     }
 
@@ -91,7 +93,7 @@ void init_ode_solver_with_cell_model(struct ode_solver *solver) {
         exit(1);
     }
 
-    solver->get_cell_model_data = dlsym(solver->handle, "init_cell_model_data");
+    solver->get_cell_model_data = (get_cell_model_data_fn*)dlsym(solver->handle, "init_cell_model_data");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         fprintf(stderr, "init_cell_model_data function not found in the provided model library\n");
@@ -101,14 +103,14 @@ void init_ode_solver_with_cell_model(struct ode_solver *solver) {
         }
     }
 
-    solver->set_ode_initial_conditions_cpu = dlsym(solver->handle, "set_model_initial_conditions_cpu");
+    solver->set_ode_initial_conditions_cpu = (set_ode_initial_conditions_cpu_fn*)dlsym(solver->handle, "set_model_initial_conditions_cpu");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         fprintf(stderr, "set_model_initial_conditions function not found in the provided model library\n");
         exit(1);
     }
 
-    solver->solve_model_ode_cpu = dlsym(solver->handle, "solve_model_odes_cpu");
+    solver->solve_model_ode_cpu = (solve_model_ode_cpu_fn*)dlsym(solver->handle, "solve_model_odes_cpu");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         fprintf(stderr, "solve_model_odes_cpu function not found in the provided model library\n");
@@ -116,14 +118,14 @@ void init_ode_solver_with_cell_model(struct ode_solver *solver) {
     }
 
 #ifdef COMPILE_CUDA
-    solver->set_ode_initial_conditions_gpu = dlsym(solver->handle, "set_model_initial_conditions_gpu");
+    solver->set_ode_initial_conditions_gpu = (set_ode_initial_conditions_gpu_fn*)dlsym(solver->handle, "set_model_initial_conditions_gpu");
     if((error = dlerror()) != NULL) {
         fputs(error, stderr);
         fprintf(stderr, "set_model_initial_conditions_gpu function not found in the provided model library\n");
         exit(1);
     }
 
-    solver->solve_model_ode_gpu = dlsym(solver->handle, "solve_model_odes_gpu");
+    solver->solve_model_ode_gpu = (solve_model_ode_gpu_fn*)dlsym(solver->handle, "solve_model_odes_gpu");
     if((error = dlerror()) != NULL) {
         fputs(error, stderr);
         fprintf(stderr, "\nsolve_model_odes_gpu function not found in the provided model library\n");
@@ -132,14 +134,14 @@ void init_ode_solver_with_cell_model(struct ode_solver *solver) {
 #endif
 
 #ifdef COMPILE_SYCL
-    solver->set_ode_initial_conditions_sycl = dlsym(solver->handle, "set_model_initial_conditions_sycl");
+    solver->set_ode_initial_conditions_sycl = (set_ode_initial_conditions_sycl_fn*)dlsym(solver->handle, "set_model_initial_conditions_sycl");
     if((error = dlerror()) != NULL) {
         fputs(error, stderr);
         fprintf(stderr, "set_model_initial_conditions_sycl function not found in the provided model library\n");
         exit(1);
     }
 
-    solver->solve_model_ode_sycl = dlsym(solver->handle, "solve_model_odes_sycl");
+    solver->solve_model_ode_sycl = (solve_model_ode_sycl_fn*)dlsym(solver->handle, "solve_model_odes_sycl");
     if((error = dlerror()) != NULL) {
         fputs(error, stderr);
         fprintf(stderr, "\nsolve_model_odes_sycl function not found in the provided model library\n");
@@ -215,11 +217,13 @@ void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struc
             free(solver->sv);
         }
 
-        // We do not malloc here sv anymore. This have to be done in the model solver
         soics_fn_pt(solver, ode_extra_config);
+    
+        printf("%lf %lf\n", solver->sv[0], solver->sv[1], solver->sv[solver->num_cells_to_solve-1]);
+        printf("%lf %lf\n", solver->sv[solver->num_cells_to_solve*1], solver->sv[solver->num_cells_to_solve*1+1]);
     #endif
     }
-    
+
     if(solver->sv == NULL) {
         log_error_and_exit("Error allocating memory for the ODE's state vector. Exiting!\n");
     }
@@ -293,13 +297,18 @@ void solve_all_volumes_odes(struct ode_solver *the_ode_solver, real_cpu cur_time
         }
     else {
         // SYCL code
-        #ifdef COMPILE_SYCL
+    #ifdef COMPILE_SYCL
         solve_model_ode_sycl_fn *solve_odes_fn = the_ode_solver->solve_model_ode_sycl;
         solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
-        #endif
+        //for (int i = 0; i < the_ode_solver->num_cells_to_solve; i++) {
+        //    if (merged_stims[i] > 0) {
+        //        printf("%d = %lf\n", i, merged_stims[i]);
+        //    }
+        //}
+        //printf("%lf %lf %lf\n", the_ode_solver->sv[0], the_ode_solver->sv[1], the_ode_solver->sv[the_ode_solver->num_cells_to_solve-1]);
+    #endif
     }
     
-
     free(merged_stims);
 }
 

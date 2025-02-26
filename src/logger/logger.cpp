@@ -18,7 +18,7 @@ void log_to_stdout_and_file(const char *prefix, char const *fmt, ...) {
     char *fmt_plus_prefix;
 
     if(prefix) {
-        fmt_plus_prefix = malloc(strlen(fmt) + strlen(prefix) + 2);
+        fmt_plus_prefix = (char*)malloc(strlen(fmt) + strlen(prefix) + 2);
         sprintf(fmt_plus_prefix, "%s %s", prefix, fmt);
     }
     else {
@@ -51,7 +51,7 @@ void log_to_stderr_and_file(bool exit_program, const char *prefix, char const *f
     char *fmt_plus_prefix;
 
     if(prefix) {
-        fmt_plus_prefix = malloc(strlen(fmt) + strlen(prefix) + 2);
+        fmt_plus_prefix = (char*)malloc(strlen(fmt) + strlen(prefix) + 2);
         sprintf(fmt_plus_prefix, "%s %s", prefix, fmt);
     }
     else {

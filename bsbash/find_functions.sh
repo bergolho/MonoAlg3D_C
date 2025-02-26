@@ -148,5 +148,8 @@ FIND_SYCL() {
 	SYCL_INCLUDE_PATH="/opt/intel/oneapi/compiler/2025.0/include"
 	SYCL_LIBRARY_PATH="/opt/intel/oneapi/compiler/2025.0/lib"
 	ICPX=$(which icpx)
+	export SYCL_FOUND
+	export SYCL_INCLUDE_PATH
+	export SYCL_LIBRARY_PATH
   fi
 }

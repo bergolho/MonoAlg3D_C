@@ -117,6 +117,10 @@ struct __attribute__ ((__packed__)) sdshdr64 {
 #define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
 #define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 static inline size_t sdslen(const sds s) {
     unsigned char flags = s[-1];
     switch(flags&SDS_TYPE_MASK) {
@@ -300,6 +304,10 @@ void *sdsAllocPtr(sds s);
 void *sds_malloc(size_t size);
 void *sds_realloc(void *ptr, size_t size);
 void sds_free(void *ptr);
+
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef REDIS_TEST
 int sdsTest(int argc, char *argv[]);

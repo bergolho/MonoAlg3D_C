@@ -224,7 +224,7 @@ if [ -n "$COMPILE_GUI" ]; then
     OPT_DEPS_GUI="gui raylib tinyfiledialogs"
 fi
 
-if [ -n "$CUDA_FOUND" ]; then
+if [ -n "$CUDA_FOUND" ] || [ -n "$SYCL_FOUND" ]; then
     ADD_SUBDIRECTORY "src/gpu_utils"
     OPT_DEPS_GPU=gpu_utils
 fi

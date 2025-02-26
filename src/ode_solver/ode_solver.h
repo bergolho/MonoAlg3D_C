@@ -11,18 +11,11 @@
 #include "../common_types/common_types.h"
 
 #ifdef __CUDACC__
-extern "C" {
     #include "../logger/logger.h"
     #include "../config_helpers/config_helpers.h"
-};
-#elif defined(__SYCLCC__)
-extern "C" {
-    #include "../logger/logger.h"
-    #include "../config_helpers/config_helpers.h"
-};
 #else
-#include "../logger/logger.h"
-#include "../config_helpers/config_helpers.h"
+    #include "../logger/logger.h"
+    #include "../config_helpers/config_helpers.h"
 #endif
 
 //Forward declaration
@@ -96,10 +89,11 @@ struct ode_solver {
     solve_model_ode_gpu_fn *solve_model_ode_gpu;
     solve_model_ode_sycl_fn *solve_model_ode_sycl;
     //update_gpu_fn_pt update_gpu_fn;
-
-
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struct string_hash_entry *ode_extra_config);
 
 void update_state_vectors_after_refinement(struct ode_solver *ode_solver, const uint32_t *refined_this_step);
@@ -115,5 +109,8 @@ void configure_ode_solver_from_options(struct ode_solver *solver, struct user_op
 
 void configure_purkinje_ode_solver_from_options (struct ode_solver *purkinje_solver, struct user_options *options);
 void configure_purkinje_ode_solver_from_ode_solver (struct ode_solver *purkinje_solver, struct ode_solver *solver);
+#ifdef __cplusplus
+}
+#endif
 
 #endif //MONOALG3D_EDO_SOLVER_H

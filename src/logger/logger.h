@@ -26,10 +26,16 @@ struct logt {
 #define log_error(fmt, ...) log_to_stderr_and_file(false, ERROR_PREFIX, (fmt), ##__VA_ARGS__ )
 #define log_error_and_exit(fmt, ...) log_to_stderr_and_file(true, ERROR_PREFIX, (fmt), ##__VA_ARGS__ )
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 void set_no_stdout(bool val);
 void open_logfile(const char *path);
 void close_logfile();
 void log_to_stdout_and_file(const char *prefix, char const *fmt, ...);
 void log_to_stderr_and_file(bool exit, const char *prefix, char const *fmt, ...);
+#ifdef __cplusplus
+}
+#endif
 
 #endif //MONOALG3D_C_LOGGER_H

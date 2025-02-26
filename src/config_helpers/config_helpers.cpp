@@ -27,7 +27,7 @@ char *get_string_parameter (struct string_hash_entry *config, const char *parame
 
 bool get_vector_parameter(real_cpu **v, const char *parameter, int n) {
 
-    *v = malloc(sizeof(real_cpu) * n);
+    *v = (real_cpu*)malloc(sizeof(real_cpu) * n);
 
     int c;
 
@@ -82,7 +82,7 @@ bool get_vector3_parameter(real_cpu v[3], const char *parameter) {
 
 bool get_matrix_parameter(real_cpu **v, const char *parameter, int nlin, int ncol) {
 
-    *v = malloc(sizeof(real_cpu) * nlin * ncol);
+    *v = (real_cpu*)malloc(sizeof(real_cpu) * nlin * ncol);
 
     int c;
 
