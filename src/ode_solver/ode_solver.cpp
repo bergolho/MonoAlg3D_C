@@ -219,8 +219,6 @@ void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struc
 
         soics_fn_pt(solver, ode_extra_config);
     
-        //printf("%lf %lf\n", solver->sv[0], solver->sv[1], solver->sv[solver->num_cells_to_solve-1]);
-        //printf("%lf %lf\n", solver->sv[solver->num_cells_to_solve*1], solver->sv[solver->num_cells_to_solve*1+1]);
     #endif
     }
 

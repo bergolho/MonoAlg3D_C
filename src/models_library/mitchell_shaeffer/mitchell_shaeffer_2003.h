@@ -24,7 +24,7 @@ inline __device__ void RHS_gpu(real *sv_, real *rDY_, real stim_current, int thr
 
 #ifdef COMPILE_SYCL
 
-void RHS_sycl (real *sv, real *rDY_, real stim_current);
+inline void RHS_sycl (real *Y, real stim_current, real *dY, int sv_id);
 
 #endif
 
