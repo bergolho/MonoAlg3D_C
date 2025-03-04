@@ -414,6 +414,7 @@ void configure_purkinje_ode_solver_from_options(struct ode_solver *purkinje_solv
     purkinje_solver->rel_tol = options->ode_reltol;
     purkinje_solver->min_dt = (real)options->purkinje_dt_ode;
     purkinje_solver->gpu = options->purkinje_gpu;
+    purkinje_solver->use_sycl = options->use_sycl;
 
     if(options->purkinje_model_file_path) {
         free(purkinje_solver->model_data.model_library_path);
@@ -430,6 +431,7 @@ void configure_purkinje_ode_solver_from_ode_solver(struct ode_solver *purkinje_s
     purkinje_solver->adaptive = solver->adaptive;
     purkinje_solver->abs_tol = solver->abs_tol;
     purkinje_solver->rel_tol = solver->rel_tol;
+    purkinje_solver->use_sycl = solver->use_sycl;
 
     if(solver->model_data.model_library_path) {
         purkinje_solver->model_data.model_library_path = strdup(solver->model_data.model_library_path);

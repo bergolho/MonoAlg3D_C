@@ -136,6 +136,9 @@ FIND_AMGX() {
 
 # TODO: On the Aurora supercomputer there is no need to execute the "setvars.sh"
 #	   the SYCL enviroment variables are already on the PATH.
+# SYCL_SETVARS_PATH="/opt/aurora/24.180.3/oneapi/setvars.sh"
+# SYCL_INCLUDE_PATH="/opt/aurora/24.180.3/updates/oneapi/compiler/eng-20240629/include"
+# SYCL_LIBRARY_PATH="/opt/aurora/24.180.3/updates/oneapi/compiler/eng-20240629/lib"
 FIND_SYCL() {
   # SYCL related variables
   SYCL_SETVARS_PATH="/opt/intel/oneapi/setvars.sh"

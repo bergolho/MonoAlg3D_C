@@ -5,12 +5,11 @@
 
 #include "../../common_types/common_types.h"
 
-#include "mitchell_shaeffer_2003.h"
-
+#include "fhn_mod.h"
 
 extern "C" SET_ODE_INITIAL_CONDITIONS_SYCL(set_model_initial_conditions_sycl)
 {
-    printf("Using Mitchell-Shaeffer 2003 SYCL model\n");
+    printf("Using FitzHugh-Nagumo 1961 SYCL model\n");
     dpct::device_ext &dev_ct1 = dpct::get_current_device();
     sycl::queue &q_ct1 = dev_ct1.default_queue();
     printf("Running on '%s'\n", q_ct1.get_device().get_info<sycl::info::device::name>().c_str());
@@ -30,8 +29,8 @@ extern "C" SET_ODE_INITIAL_CONDITIONS_SYCL(set_model_initial_conditions_sycl)
             q_ct1.submit([&](sycl::handler& h) {
                 auto sv = sv_buf.get_access<sycl::access::mode::write>(h);
                 h.parallel_for(sycl::range<1>(num_cells), [=](sycl::id<1> i) {
-                    sv[i][0] = 0.00000820413566106744;      // V
-                    sv[i][1] = 0.8789655121804799;          // h
+                    sv[i][0] = 0.000000f; // Vm millivolt
+                    sv[i][1] = 0.000000f; // v dimensionless
                 });
             }).wait();
         } catch (sycl::exception &e) {
@@ -39,77 +38,6 @@ extern "C" SET_ODE_INITIAL_CONDITIONS_SYCL(set_model_initial_conditions_sycl)
         }
     }
 }
-
-/*
-// This version uses access buffers
-extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
-
-    size_t num_cells_to_solve = ode_solver->num_cells_to_solve;
-    uint32_t * cells_to_solve = ode_solver->cells_to_solve;
-    real *sv = ode_solver->sv;
-    real dt = ode_solver->min_dt;
-    uint32_t num_steps = ode_solver->num_steps;
-
-    dpct::device_ext &dev_ct1 = dpct::get_current_device();
-    sycl::queue &q_ct1 = dev_ct1.default_queue();
-
-    sycl::buffer<real, 2> sv_buf(ode_solver->sv, sycl::range<2>(num_cells_to_solve, NEQ));
-    sycl::buffer<real, 1> stim_buf(stim_currents, sycl::range<1>(num_cells_to_solve));
-
-    //const int BLOCK_SIZE = 32;
-    //const int GRID = (num_cells_to_solve + BLOCK_SIZE - 1) / BLOCK_SIZE;
-
-    try {
-        q_ct1.submit([&](sycl::handler& hand) {
-                auto sv_sycl = sv_buf.get_access<sycl::access::mode::read_write>(hand);
-                auto stim = stim_buf.get_access<sycl::access::mode::read>(hand);
-
-                // num_cells_to_solve -> 'i'
-                hand.parallel_for(sycl::range<1>(num_cells_to_solve), [=](sycl::id<1> i) {
-                    
-                    int sv_id;
-                    if(cells_to_solve)
-                        sv_id = cells_to_solve[i];
-                    else
-                        sv_id = i;
-
-                    real rDY[NEQ];
-
-                    for (int n = 0; n < num_steps; ++n) {
-
-                        //State variables
-                        const real V = sv_sycl[i][0];
-                        const real h = sv_sycl[i][1];
-                        const real stim_current = stim[i];
-
-                        // Constants
-                        const real tau_in = 0.3;
-                        const real tau_out = 6.0;
-                        const real V_gate = 0.13;
-                        const real tau_open = 120.0;
-                        const real tau_close = 150.0;
-
-                        // Algebraics
-                        real J_stim = stim_current;
-                        real J_in = ( h*( sycl::pow(V, 2.00000)*(1.00000 - V)))/tau_in;
-                        real J_out = - (V/tau_out);
-
-                        // Rates
-                        rDY[0] = J_out + J_in + J_stim;
-                        rDY[1] = (V < V_gate ? (1.00000 - h)/tau_open : - h/tau_close);
-                        
-                        // neq -> 'j'
-                        for(int j = 0; j < NEQ; j++) {
-                            sv_sycl[i][j] = dt * rDY[j] + sv_sycl[i][j]; 
-                        }            
-                    }
-                });
-        }).wait();
-    } catch (sycl::exception &e) {
-        printf("SYCL exception: %s\n", e.what());
-    }
-}
-*/
 
 extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
 
@@ -179,28 +107,18 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     }
 }
 
-// Remember to use: sycl::pow, sycl::exp, ...
 inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id) {
 
-    // Load state variables
-    real V = Y[sv_id * NEQ + 0];
-    real h = Y[sv_id * NEQ + 1];
-    //real stim_current = d_stim[i];
+    //State variables
+    const real u = Y[sv_id * NEQ + 0];
+    const real v = Y[sv_id * NEQ + 1];
 
-    // Constants (computed outside the loop for efficiency)
-    constexpr real tau_in = 0.3;
-    constexpr real tau_out = 6.0;
-    constexpr real V_gate = 0.13;
-    constexpr real tau_open = 120.0;
-    constexpr real tau_close = 150.0;
+    const real a = 0.2f;
+    const real b = 0.5f;
+    const real k = 36.0;
+    const real epsilon  =  0.00040;
 
-    // Algebraics
-    real J_stim = stim_current;
-    real J_in = (h * (sycl::pow(V, 2.00000) * (1.00000 - V))) / tau_in;
-    real J_out = - (V / tau_out);
-
-    // Compute rates
-    dY[0] = J_out + J_in + J_stim;
-    dY[1] = (V < V_gate) ? (1.00000 - h) / tau_open : -h / tau_close;
+    dY[0] = k*(u*(1.0f - u)*(u - a) - u*v) + stim_current;
+    dY[1] = k*epsilon*(b*u - v);
 
 }
