@@ -54,7 +54,7 @@ void free_ode_solver(struct ode_solver *solver) {
 #endif
         } else {
 #ifdef COMPILE_SYCL            
-            //free_device(solver->sv);
+            free(solver->sv);           
 #endif        
         }
     }
@@ -414,7 +414,7 @@ void configure_purkinje_ode_solver_from_options(struct ode_solver *purkinje_solv
     purkinje_solver->rel_tol = options->ode_reltol;
     purkinje_solver->min_dt = (real)options->purkinje_dt_ode;
     purkinje_solver->gpu = options->purkinje_gpu;
-    purkinje_solver->use_sycl = options->use_sycl;
+    purkinje_solver->use_sycl = options->purkinje_sycl;
 
     if(options->purkinje_model_file_path) {
         free(purkinje_solver->model_data.model_library_path);

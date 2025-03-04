@@ -1700,6 +1700,14 @@ int parse_config_file(void *user, const char *section, const char *name, const c
                 pconfig->purkinje_gpu = false;
             }
             pconfig->purkinje_gpu_was_set = true;
+        } else if(MATCH_NAME("use_sycl")) {
+            if (IS_TRUE(value)) {
+                pconfig->purkinje_sycl = true;
+            }
+            else {
+                pconfig->purkinje_sycl = false;
+            }
+            pconfig->purkinje_sycl_was_set = true;
         } else if(MATCH_NAME("gpu_id")) {
             parse_expr_and_set_int_value(pconfig->config_file, value, &pconfig->purkinje_gpu_id, &pconfig->purkinje_gpu_id_was_set);
         } else if(MATCH_NAME("library_file")) {

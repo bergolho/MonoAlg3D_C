@@ -18,7 +18,7 @@ extern "C" SET_ODE_INITIAL_CONDITIONS_SYCL(set_model_initial_conditions_sycl)
     uint32_t num_cells = solver->original_num_cells;
     
     // TODO: Try to allocate the 'sv' array using 'malloc_device()'
-    solver->sv = new real[num_cells*NEQ]();
+    solver->sv = (real*)malloc(NEQ*num_cells*sizeof(real));
     //solver->sv = sycl::malloc_device<real>(num_cells*NEQ*sizeof(real), q_ct1);
     sycl::buffer<real, 2> sv_buf(solver->sv, sycl::range<2>(num_cells,NEQ));
 

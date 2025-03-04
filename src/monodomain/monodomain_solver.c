@@ -1496,6 +1496,7 @@ void compute_pmj_current_tissue_to_purkinje(struct ode_solver *the_purkinje_ode_
     real Gpmj = 1.0 / rpmj;
 
     if (the_purkinje_ode_solver->use_sycl) {
+    #ifdef COMPILE_SYCL
         uint32_t num_of_purkinje_terminals = the_grid->purkinje->network->number_of_terminals;
         for(uint32_t i = 0; i < num_of_purkinje_terminals; i++) {
 
@@ -1514,6 +1515,7 @@ void compute_pmj_current_tissue_to_purkinje(struct ode_solver *the_purkinje_ode_
             // Add this current to the RHS of the Purkinje cell
             ac_purkinje[purkinje_index]->b -= Ipmj;
         }
+    #endif
     }
     else {
         if(the_purkinje_ode_solver->gpu) {

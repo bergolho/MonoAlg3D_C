@@ -20,7 +20,7 @@ extern "C" SET_ODE_INITIAL_CONDITIONS_SYCL(set_model_initial_conditions_sycl)
     //      For some strange reason when we allocate the 'solver->sv' on the GPU we are getting CUDA errors
     //      when trying to initialize the values. Segmentation Fault error.
     // Solution: 1) Using access buffers between host<->device; 2) Copying memory between host<->device;
-    solver->sv = new real[num_cells*NEQ]();
+    solver->sv = (real*)malloc(NEQ*num_cells*sizeof(real));
     sycl::buffer<real, 2> sv_buf(solver->sv, sycl::range<2>(num_cells,NEQ));
 
     if (solver->sv) {
