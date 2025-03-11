@@ -214,6 +214,10 @@ struct fibers_conversion_options {
     char *output_file;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void display_usage(char **argv);
 void display_batch_usage(char **argv);
 void display_eikonal_usage(char **argv);
@@ -255,5 +259,8 @@ void free_eikonal_options(struct eikonal_options *options);
 
 void set_or_overwrite_common_data(struct config* config, const char *key, const char *value, const char *section, const char *config_file);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* MONOALG3D_CONFIG_PARSER_H */

@@ -35,6 +35,9 @@ struct monodomain_solver {
 
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 struct monodomain_solver *new_monodomain_solver ();
 
 int solve_monodomain(struct monodomain_solver *the_monodomain_solver, struct ode_solver *the_ode_solver,
@@ -58,5 +61,8 @@ void compute_pmj_current_tissue_to_purkinje (struct ode_solver *the_purkinje_ode
 
 void write_pmj_delay (struct grid *the_grid, struct config *config, struct terminal *the_terminals);
 void write_terminals_info (struct grid *the_grid, struct config *config, struct terminal *the_terminals);
+#ifdef __cplusplus
+}
+#endif
 
 #endif // MONOALG3D_SOLVER_H

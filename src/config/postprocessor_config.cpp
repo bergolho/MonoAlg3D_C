@@ -11,7 +11,7 @@
 
 struct postprocess_function *new_postprocess_function() {
 
-    struct postprocess_function *ret = malloc(sizeof(struct postprocess_function));
+    struct postprocess_function *ret = (struct postprocess_function *)malloc(sizeof(struct postprocess_function));
     ret->function_params = alloc_and_init_config_data();
     ret->function = NULL;
 
@@ -28,7 +28,7 @@ void init_postprocess_function(struct postprocess_function *function, const char
         log_error_and_exit("%s\n", dlerror());
     }
 
-    function->function = dlsym(handle, f_name);
+    function->function = (postprocess_fn*)dlsym(handle, f_name);
     char *error = dlerror();
 
     if (error != NULL)  {

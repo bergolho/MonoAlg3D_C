@@ -1426,35 +1426,35 @@ void parse_options(int argc, char **argv, struct user_options *user_args) {
                 log_info("Creating new assembly_matrix config from command line!\n");
                 user_args->assembly_matrix_config = alloc_and_init_config_data();
             }
-            set_config(optarg, user_args->assembly_matrix_config, user_args->config_file, "assembly_matrix");
+            set_config(optarg, (struct config*)user_args->assembly_matrix_config, user_args->config_file, (char*)"assembly_matrix");
             break;
         case LINEAR_SYSTEM_SOLVER_OPT:
             if(user_args->linear_system_solver_config == NULL) {
                 log_info("Creating new linear_system_solver config from command line!\n");
                 user_args->linear_system_solver_config = alloc_and_init_config_data();
             }
-            set_config(optarg, user_args->linear_system_solver_config, user_args->config_file, "linear_system_solver");
+            set_config(optarg, (struct config*)user_args->linear_system_solver_config, user_args->config_file, (char*)"linear_system_solver");
             break;
         case UPDATE_MONODOMAIN_SOLVER_OPT:
             if(user_args->update_monodomain_config == NULL) {
                 log_info("Creating new update_monodomain config from command line!\n");
                 user_args->update_monodomain_config = alloc_and_init_config_data();
             }
-            set_config(optarg, user_args->update_monodomain_config, user_args->config_file, "update_monodomain");
+            set_config(optarg, (struct config*)user_args->update_monodomain_config, user_args->config_file, (char*)"update_monodomain");
             break;
         case EXTRA_DATA_OPT:
             if(user_args->extra_data_config == NULL) {
                 log_info("Creating new extra data config from command line!\n");
                 user_args->extra_data_config = alloc_and_init_config_data();
             }
-            set_config(optarg, user_args->extra_data_config, user_args->config_file, "extra_data");
+            set_config(optarg, (struct config*)user_args->extra_data_config, user_args->config_file, (char*)"extra_data");
             break;
         case PURKINJE_EXTRA_DATA_OPT:
             if(user_args->purkinje_extra_data_config == NULL) {
                 log_info("Creating new purkinje extra data config from command line!\n");
                 user_args->purkinje_extra_data_config = alloc_and_init_config_data();
             }
-            set_config(optarg, user_args->purkinje_extra_data_config, user_args->config_file, "purkinje_extra_data");
+            set_config(optarg, (struct config*)user_args->purkinje_extra_data_config, user_args->config_file, (char*)"purkinje_extra_data");
             break;
         case STIM_OPT:
             if(user_args->stim_configs == NULL) {
@@ -1473,14 +1473,14 @@ void parse_options(int argc, char **argv, struct user_options *user_args) {
                 log_info("Creating new save state config from command line!\n");
                 user_args->save_state_config = alloc_and_init_config_data();
             }
-            set_config(optarg, user_args->save_state_config, user_args->config_file, "save_state");
+            set_config(optarg, (struct config*)user_args->save_state_config, user_args->config_file, (char*)"save_state");
             break;
         case RESTORE_STATE_OPT:
             if(user_args->restore_state_config == NULL) {
                 log_info("Creating new restore state config from command line!\n");
                 user_args->restore_state_config = alloc_and_init_config_data();
             }
-            set_config(optarg, user_args->restore_state_config, user_args->config_file, "restore_state");
+            set_config(optarg, (struct config*)user_args->restore_state_config, user_args->config_file, (char*)"restore_state");
             break;
         case DRAW_OPT:
             user_args->show_gui = true;
@@ -1555,7 +1555,7 @@ int parse_converter_config_file(void *user, const char *section, const char *nam
 
     struct conversion_options *pconfig = (struct conversion_options *)user;
 
-    struct string_hash_entry *section_entry = shget(pconfig->extra_data_config, section);
+    struct string_hash_entry *section_entry = (struct string_hash_entry *)shget(pconfig->extra_data_config, section);
 
     if( section_entry == NULL) {
         sh_new_arena(section_entry);
@@ -1887,7 +1887,7 @@ int parse_eikonal_config_file(void *options, const char *section, const char *na
     
     } else if(MATCH_SECTION_AND_NAME(MAIN_SECTION, "dt")) {
     
-        parse_expr_and_set_real_cpu_value(pconfig->config_file, value, &pconfig->dt, &pconfig->dt_was_set);
+        parse_expr_and_set_real_value(pconfig->config_file, value, &pconfig->dt, &pconfig->dt_was_set);
     
     } else if(SECTION_STARTS_WITH(STIM_SECTION)) {
 

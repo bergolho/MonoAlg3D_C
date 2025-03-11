@@ -15,7 +15,13 @@
 #include "../gpu_utils/gpu_utils.h"
 #endif
 
+#ifdef COMPILE_SYCL
+#include "../gpu_utils/sycl_utils.h"
+#endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 UPDATE_MONODOMAIN(update_monodomain_default) {
 
     real_cpu alpha;
@@ -39,6 +45,18 @@ UPDATE_MONODOMAIN(update_monodomain_default) {
     }
     #endif
 
+    #ifdef COMPILE_SYCL
+    dpct::device_ext &dev_ct1 = dpct::get_current_device();
+    sycl::queue &q_ct1 = dev_ct1.default_queue();
+    real *vms = NULL;
+    size_t mem_size = initial_number_of_cells * sizeof(real);
+
+    if(use_gpu) {
+        vms = MALLOC_BYTES(real, mem_size);
+        q_ct1.memcpy(vms, sv, mem_size).wait();
+    }
+    #endif
+
     OMP(parallel for private(alpha))
     for(uint32_t i = 0; i < num_active_cells; i++) {
         alpha = ALPHA(beta, cm, dt_pde, active_cells[i]->discretization.x, active_cells[i]->discretization.y, active_cells[i]->discretization.z);
@@ -54,14 +72,21 @@ UPDATE_MONODOMAIN(update_monodomain_default) {
         }
         else {
             #ifdef COMPILE_SYCL
-            active_cells[i]->b = sv[active_cells[i]->sv_position * n_equations_cell_model] * alpha;
+            active_cells[i]->b = vms[active_cells[i]->sv_position] * alpha;
             #endif
         }
     }
     #ifdef COMPILE_CUDA
     free(vms);
     #endif
+    
+    #ifdef COMPILE_SYCL
+    free(vms);
+    #endif
 }
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef ENABLE_DDM
 UPDATE_MONODOMAIN(update_monodomain_ddm) {

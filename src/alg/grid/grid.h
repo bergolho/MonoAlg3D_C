@@ -43,6 +43,10 @@ struct grid {
 
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct grid* new_grid();
 void initialize_grid(struct grid *the_grid, struct point_3d side_length);
 void clean_and_free_grid(struct grid* the_grid);
@@ -89,5 +93,9 @@ void update_link_purkinje_to_endocardium (struct grid *the_grid, struct terminal
 void set_active_terminals (struct terminal *the_terminals, const uint32_t number_of_terminals, const char filename[]);
 void print_terminals (struct terminal *the_terminals, const uint32_t number_of_terminals);
 void free_terminals (struct terminal *the_terminals, const uint32_t number_of_terminals);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //MONOALG3D_GRID_H

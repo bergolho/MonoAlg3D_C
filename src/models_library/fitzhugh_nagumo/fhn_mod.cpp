@@ -16,22 +16,26 @@ extern "C" SET_ODE_INITIAL_CONDITIONS_SYCL(set_model_initial_conditions_sycl)
 
     uint32_t num_cells = solver->original_num_cells;
     
-    // TODO: Try to allocate the 'sv' array using 'malloc_device()'
-    solver->sv = (real*)malloc(NEQ*num_cells*sizeof(real));
-    //solver->sv = sycl::malloc_device<real>(num_cells*NEQ*sizeof(real), q_ct1);
-    sycl::buffer<real, 2> sv_buf(solver->sv, sycl::range<2>(num_cells,NEQ));
-
+    solver->sv = sycl::malloc_device<real>(num_cells*NEQ*sizeof(real), q_ct1);
+    
     if (solver->sv) {
         const int BLOCK_SIZE = 32;
         const int GRID = (num_cells + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        const int TOTAL_THREADS = BLOCK_SIZE*GRID;
 
         try {
             q_ct1.submit([&](sycl::handler& h) {
-                auto sv = sv_buf.get_access<sycl::access::mode::write>(h);
-                h.parallel_for(sycl::range<1>(num_cells), [=](sycl::id<1> i) {
-                    sv[i][0] = 0.000000f; // Vm millivolt
-                    sv[i][1] = 0.000000f; // v dimensionless
-                });
+                real *sv = solver->sv;
+                h.parallel_for(
+                    sycl::nd_range<1>(sycl::range<1>(TOTAL_THREADS), sycl::range<1>(BLOCK_SIZE)),
+                    [=](sycl::nd_item<1> item) {
+                        int i = item.get_global_id(0);
+                        if (i < num_cells) {
+                            sv[0*num_cells+i] = 0.0;  // Vm millivolt
+                            sv[1*num_cells+i] = 0.0;  // v dimensionless
+                        }
+                    }
+                );
             }).wait();
         } catch (sycl::exception &e) {
             printf("SYCL exception: %s\n", e.what());
@@ -51,7 +55,6 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     sycl::queue &q_ct1 = dev_ct1.default_queue();
 
     // Using Unifed Shared Memory (USM) instead of access buffer to improve performance
-    real *d_sv = sycl::malloc_device<real>(num_cells_to_solve*NEQ, q_ct1);
     real *d_stim = sycl::malloc_device<real>(num_cells_to_solve, q_ct1);
     uint32_t *d_cells_to_solve = NULL;
     if (cells_to_solve) {
@@ -60,7 +63,6 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     }
     
     // Copy initial data to device
-    q_ct1.memcpy(d_sv, sv, num_cells_to_solve*NEQ*sizeof(real)).wait();
     q_ct1.memcpy(d_stim, stim_currents, num_cells_to_solve*sizeof(real)).wait();
 
     // Define block and grid sizes
@@ -83,22 +85,18 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
                     real rDY[NEQ];
 
                     for (int n = 0; n < num_steps; ++n) {
-                        RHS_sycl(d_sv, d_stim[i], rDY, sv_id);
+                        RHS_sycl(sv, d_stim[i], rDY, sv_id, num_cells_to_solve);
 
                         // Update state variables
                         #pragma unroll
                         for (int j = 0; j < NEQ; j++) {
-                            d_sv[sv_id * NEQ + j] += dt * rDY[j];
+                            sv[j * num_cells_to_solve + i] += dt * rDY[j];
                         }
                     }
                 });
         }).wait();
 
-        // Copy results back
-        q_ct1.memcpy(sv, d_sv, num_cells_to_solve * NEQ * sizeof(real)).wait();
-
         // Free device memory
-        sycl::free(d_sv, q_ct1);
         sycl::free(d_stim, q_ct1);
         if (d_cells_to_solve) sycl::free(d_cells_to_solve, q_ct1);
 
@@ -107,11 +105,11 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     }
 }
 
-inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id) {
+inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, int num_cells) {
 
     //State variables
-    const real u = Y[sv_id * NEQ + 0];
-    const real v = Y[sv_id * NEQ + 1];
+    const real u = Y[0 * num_cells + sv_id];
+    const real v = Y[1 * num_cells + sv_id];
 
     const real a = 0.2f;
     const real b = 0.5f;

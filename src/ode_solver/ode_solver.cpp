@@ -218,7 +218,6 @@ void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struc
         }
 
         soics_fn_pt(solver, ode_extra_config);
-    
     #endif
     }
 

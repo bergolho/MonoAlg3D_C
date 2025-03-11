@@ -9,9 +9,17 @@
 
 #include "../common_types/common_types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void sort_vector(real_cpu **a, int length);
 void sort_vector_by_distance (real_cpu *dist_array, uint32_t *indexes, int length);
 int inside_mesh(real_cpu **a, real_cpu x, real_cpu y, real_cpu z, size_t first, size_t last);
 float calculate_mean (const float *arr, uint64_t size);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif //MONOALG3D_UTILS_H_H

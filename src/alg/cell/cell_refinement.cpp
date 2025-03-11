@@ -1051,10 +1051,10 @@ void simplify_refinement( struct transition_node *transition_node ) {
             cell_node[3] = (struct cell_node*)(transition_node->quadruple_connector4);
 
             struct cell_node *neighbor_cell[4];
-            neighbor_cell[0] = neighbour_node->quadruple_connector1;
-            neighbor_cell[1] = neighbour_node->quadruple_connector2;
-            neighbor_cell[2] = neighbour_node->quadruple_connector3;
-            neighbor_cell[3] = neighbour_node->quadruple_connector4;
+            neighbor_cell[0] = (struct cell_node *)neighbour_node->quadruple_connector1;
+            neighbor_cell[1] = (struct cell_node *)neighbour_node->quadruple_connector2;
+            neighbor_cell[2] = (struct cell_node *)neighbour_node->quadruple_connector3;
+            neighbor_cell[3] = (struct cell_node *)neighbour_node->quadruple_connector4;
 
             enum transition_direction direction = transition_node->direction;
             enum cell_type type;

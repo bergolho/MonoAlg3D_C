@@ -71,6 +71,10 @@ typedef struct pqueue_t
     void **d;                   /**< The actualy queue in binary heap form */
 } pqueue_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * initialize the queue
  *
@@ -190,6 +194,10 @@ pqueue_dump(pqueue_t *q,
  * @param q the queue
  */
 int pqueue_is_valid(pqueue_t *q);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* PQUEUE_H */
 /** @} */

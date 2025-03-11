@@ -26,7 +26,7 @@ void init_cell_node(struct cell_node *cell_node) {
 
     cell_node->bunch_number = 0;
 
-    cell_node->neighbours = calloc(sizeof(void*), NUM_NEIGHBOURS);
+    cell_node->neighbours = (void**)calloc(sizeof(void*), NUM_NEIGHBOURS);
 
     cell_node->previous = NULL;
     cell_node->next = NULL;
@@ -84,13 +84,13 @@ void free_cell_node(struct cell_node *cell_node) {
     free(cell_node);
 }
 
-inline void lock_cell_node(struct cell_node *cell_node) {
+void lock_cell_node(struct cell_node *cell_node) {
 #if defined(_OPENMP)
     omp_set_lock(&(cell_node->updating));
 #endif
 }
 
-inline void unlock_cell_node(struct cell_node *cell_node) {
+void unlock_cell_node(struct cell_node *cell_node) {
 #if defined(_OPENMP)
     omp_unset_lock(&(cell_node->updating));
 #endif
@@ -167,8 +167,8 @@ void set_cell_node_data(struct cell_node *the_cell, struct point_3d discretizati
         the_cell->neighbours = NULL;
     }
 
-    the_cell->previous = previous;
-    the_cell->next = next;
+    the_cell->previous = (struct cell_node *)previous;
+    the_cell->next = (struct cell_node *)next;
     the_cell->grid_position = grid_position;
     the_cell->hilbert_shape_number = hilbert_shape_number;
     the_cell->center = center;

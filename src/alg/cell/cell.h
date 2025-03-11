@@ -178,6 +178,10 @@ struct transition_node {
     enum transition_direction direction;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct cell_node *new_cell_node();
 
 void init_cell_node(struct cell_node *cell_node);
@@ -226,5 +230,9 @@ enum transition_direction get_inverse_direction(enum transition_direction direct
 int find_neighbour_index(struct cell_node *grid_cell, struct cell_node *neighbour);
 
 uint8_t get_visibility_mask(struct cell_node *grid_cell);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // MONOALG3D_CELL_H

@@ -6,11 +6,11 @@
 
 # Variables
 FILENAME="frames/frame"
-FRAME_RATE="5"
-START_FRAME="10"
-END_FRAME="40"
-OUTPUT_VIDEO_FILENAME="videos/oxford_DTI003_only_root_nodes_simulation_comparison_with_ecg_leads"
-RESOLUTION="1408x738"
+FRAME_RATE="20"
+START_FRAME="1"
+END_FRAME="1000"
+OUTPUT_VIDEO_FILENAME="videos/plain_wave_mitchell_sycl"
+RESOLUTION="2242x778"
 
 # Execute the converting command using FFMPEG
 ffmpeg -r ${FRAME_RATE} -f image2 -s ${RESOLUTION} -start_number ${START_FRAME} -i ${FILENAME}.%04d.png -vframes ${END_FRAME} -vcodec libx264 -crf 25  -pix_fmt yuv420p ${OUTPUT_VIDEO_FILENAME}.mp4

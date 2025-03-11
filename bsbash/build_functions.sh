@@ -378,8 +378,8 @@ COMPILE_OBJECT () {
 	fi
 
 	if [ -n "$IS_SYCL" ] && [[ $SRC_FILE == *.cpp ]]; then
-		#MY_C_FLAGS="-fsycl ${MY_C_FLAGS}"
-		MY_C_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda ${MY_C_FLAGS}"
+		MY_C_FLAGS="-fsycl ${MY_C_FLAGS}"
+		#MY_C_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda ${MY_C_FLAGS}"
 	fi
 
 	COMPILER_COMMAND=''
@@ -563,8 +563,8 @@ COMPILE_SHARED_LIB () {
 			#		To work with NVIDIA GPUs, SYCL needs to pass an additional flag '-fsycl-targets' at compilation
 			#		Option 1) Have a variable USE_GPU in the "build_functions.sh" for that
 			#		Option 2) Build two binaries, one for CPU-sycl and another for GPU-sycl (NVIDIA).
-			#ALL_FLAGS="-fsycl ${ALL_FLAGS}"
-			ALL_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda ${ALL_FLAGS}"
+			ALL_FLAGS="-fsycl ${ALL_FLAGS}"
+			#ALL_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda ${ALL_FLAGS}"
 		fi
 
 		ECHO_AND_EXEC_COMMAND "$LINKER $ALL_FLAGS"

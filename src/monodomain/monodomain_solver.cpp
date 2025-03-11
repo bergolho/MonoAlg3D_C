@@ -10,9 +10,9 @@
 #include "../gpu_utils/gpu_utils.h"
 #endif
 
-//#ifdef COMPILE_SYCL
-//#include "../gpu_utils/accel_utils.h"
-//#endif
+#ifdef COMPILE_SYCL
+#include "../gpu_utils/sycl_utils.h"
+#endif
 
 #include "../3dparty/stb_ds.h"
 #include "../config/modify_current_domain_config.h"
@@ -177,35 +177,35 @@ int solve_monodomain(struct monodomain_solver *the_monodomain_solver, struct ode
 
     // Configure the functions and set the Purkinje mesh domain
     if(purkinje_config) {
-        init_config_functions(purkinje_config, "shared_libs/libdefault_purkinje.so", "purkinje");
+        init_config_functions(purkinje_config, (char*)"shared_libs/libdefault_purkinje.so", (char*)"purkinje");
     }
 
     // Configure the functions and set the mesh domain
     if(domain_config) {
-        init_config_functions(domain_config, "./shared_libs/libdefault_domains.so", "domain");
+        init_config_functions(domain_config, (char*)"./shared_libs/libdefault_domains.so", (char*)"domain");
     }
 
     if(assembly_matrix_config != NULL) {
-        init_config_functions(assembly_matrix_config, "./shared_libs/libdefault_matrix_assembly.so", "assembly_matrix");
+        init_config_functions(assembly_matrix_config, (char*)"./shared_libs/libdefault_matrix_assembly.so", (char*)"assembly_matrix");
     } else {
         log_error_and_exit("No assembly matrix configuration provided! Exiting!\n");
     }
 
     if(linear_system_solver_config) {
-        init_config_functions(linear_system_solver_config, "./shared_libs/libdefault_linear_system_solver.so", "linear_system_solver");
+        init_config_functions(linear_system_solver_config, (char*)"./shared_libs/libdefault_linear_system_solver.so", (char*)"linear_system_solver");
     } else {
         log_error_and_exit("No linear solver configuration provided! Exiting!\n");
     }
 
     if(purkinje_linear_system_solver_config) {
-        init_config_functions(purkinje_linear_system_solver_config, "./shared_libs/libdefault_linear_system_solver.so", "purkinje_linear_system_solver");
+        init_config_functions(purkinje_linear_system_solver_config, (char*)"./shared_libs/libdefault_linear_system_solver.so", (char*)"purkinje_linear_system_solver");
     }
 
     bool calc_ecg = (calc_ecg_config != NULL);
     int calc_ecg_rate = 1;
 
     if(calc_ecg) {
-        init_config_functions(calc_ecg_config, "./shared_libs/libdefault_calc_ecg.so", "calc_ecg");
+        init_config_functions(calc_ecg_config, (char*)"./shared_libs/libdefault_calc_ecg.so", (char*)"calc_ecg");
         GET_PARAMETER_NUMERIC_VALUE_OR_USE_DEFAULT(int, calc_ecg_rate, calc_ecg_config, "calc_rate");
         calc_ecg &= (calc_ecg_rate > 0);
     }
@@ -218,7 +218,7 @@ int solve_monodomain(struct monodomain_solver *the_monodomain_solver, struct ode
     real_cpu start_saving_after_dt = 0.0;
 
     if(save_to_file) {
-        init_config_functions(save_mesh_config, "./shared_libs/libdefault_save_mesh.so", "save_result");
+        init_config_functions(save_mesh_config, (char*)"./shared_libs/libdefault_save_mesh.so", (char*)"save_result");
         GET_PARAMETER_NUMERIC_VALUE_OR_USE_DEFAULT(int, print_rate, save_mesh_config, "print_rate");
         GET_PARAMETER_STRING_VALUE_OR_USE_DEFAULT(out_dir_name, save_mesh_config, "output_dir");
         GET_PARAMETER_NUMERIC_VALUE_OR_USE_DEFAULT(real_cpu, start_saving_after_dt, save_mesh_config, "start_saving_after_dt");
@@ -240,7 +240,7 @@ int solve_monodomain(struct monodomain_solver *the_monodomain_solver, struct ode
     }
 
     if(save_checkpoint) {
-        init_config_functions(save_state_config, "./shared_libs/libdefault_save_state.so", "save_state");
+        init_config_functions(save_state_config, (char*)"./shared_libs/libdefault_save_state.so", (char*)"save_state");
     } else {
         log_info("No configuration provided to make simulation checkpoints! Chekpoints will not be created!\n");
     }
@@ -254,7 +254,7 @@ int solve_monodomain(struct monodomain_solver *the_monodomain_solver, struct ode
     }
 
     if(restore_state_config) {
-        init_config_functions(restore_state_config, "./shared_libs/libdefault_restore_state.so", "restore_state");
+        init_config_functions(restore_state_config, (char*)"./shared_libs/libdefault_restore_state.so", (char*)"restore_state");
         GET_PARAMETER_STRING_VALUE_OR_USE_DEFAULT(restore_in_dir_name, restore_state_config, "input_dir");
         if(restore_in_dir_name == NULL) {
             restore_in_dir_name = out_dir_name;
@@ -262,11 +262,11 @@ int solve_monodomain(struct monodomain_solver *the_monodomain_solver, struct ode
     }
 
     if(has_extra_data) {
-        init_config_functions(extra_data_config, "./shared_libs/libdefault_extra_data.so", "extra_data");
+        init_config_functions(extra_data_config, (char*)"./shared_libs/libdefault_extra_data.so", (char*)"extra_data");
     }
 
     if(has_purkinje_extra_data) {
-        init_config_functions(purkinje_extra_data_config, "./shared_libs/libdefault_extra_data.so", "extra_data");
+        init_config_functions(purkinje_extra_data_config, (char*)"./shared_libs/libdefault_extra_data.so", (char*)"extra_data");
     }
 
     log_msg(LOG_LINE_SEPARATOR);
@@ -285,7 +285,7 @@ int solve_monodomain(struct monodomain_solver *the_monodomain_solver, struct ode
     time_info.final_t = finalT;
 
     if(update_monodomain_config) {
-        init_config_functions(update_monodomain_config, "./shared_libs/libdefault_update_monodomain.so", "update_monodomain");
+        init_config_functions(update_monodomain_config, (char*)"./shared_libs/libdefault_update_monodomain.so", (char*)"update_monodomain");
     } else {
         log_error_and_exit("No update monodomain configuration provided! Exiting!\n");
     }
@@ -1029,7 +1029,7 @@ bool update_ode_state_vector_and_check_for_activity(real_cpu vm_threshold, struc
         // CUDA/OpenMP code
         if (!the_ode_solver->use_sycl) {
             if(the_ode_solver->gpu) {
-            #ifdef COMPILE_CUDA
+                #ifdef COMPILE_CUDA
                     uint32_t max_number_of_cells = the_ode_solver->original_num_cells;
                     real *vms;
                     size_t mem_size = max_number_of_cells * sizeof(real);
@@ -1050,7 +1050,7 @@ bool update_ode_state_vector_and_check_for_activity(real_cpu vm_threshold, struc
 
                     check_cuda_error(cudaMemcpy(sv, vms, mem_size, cudaMemcpyHostToDevice));
                     free(vms);
-            #endif
+                #endif
                 } else {
                     OMP(parallel for)
                     for(uint32_t i = 0; i < n_active; i++) {
@@ -1065,9 +1065,26 @@ bool update_ode_state_vector_and_check_for_activity(real_cpu vm_threshold, struc
             // SYCL code
             else {
             #ifdef COMPILE_SYCL
+                dpct::device_ext &dev_ct1 = dpct::get_current_device();
+                sycl::queue &q_ct1 = dev_ct1.default_queue();
+                
+                uint32_t max_number_of_cells = the_ode_solver->original_num_cells;
+                real *vms;
+                size_t mem_size = max_number_of_cells * sizeof(real);
+
+                vms = (real *)malloc(mem_size);
+
+                OMP(parallel for)
                 for(uint32_t i = 0; i < n_active; i++) {
-                    sv[ac[i]->sv_position * n_odes] = (real)ac[i]->v;
+                    vms[ac[i]->sv_position] = (real)ac[i]->v;
+                    
+                    if (ac[i]->v > vm_threshold) {
+                        act = true;
+                    }
                 }
+
+                q_ct1.memcpy(sv, vms, mem_size).wait();
+                free(vms);
             #endif
             }
     }
@@ -1119,14 +1136,28 @@ bool update_ode_state_vector_and_check_for_activity(real_cpu vm_threshold, struc
         }
         // SYCL code
         else {
+            #ifdef COMPILE_SYCL
+            dpct::device_ext &dev_ct1 = dpct::get_current_device();
+            sycl::queue &q_ct1 = dev_ct1.default_queue();
+
+            uint32_t max_number_of_purkinje_cells = the_purkinje_ode_solver->original_num_cells;
+            real *vms_purkinje;
+            size_t mem_size_purkinje = max_number_of_purkinje_cells * sizeof(real);
+
+            vms_purkinje = (real *)malloc(mem_size_purkinje);
+
             OMP(parallel for)
             for(uint32_t i = 0; i < n_active_purkinje; i++) {
-                sv_purkinje[ac_purkinje[i]->sv_position * n_odes_purkinje] = (real)ac_purkinje[i]->v;
+                vms_purkinje[ac_purkinje[i]->sv_position] = (real)ac_purkinje[i]->v;
 
                 if(ac_purkinje[i]->v > vm_threshold) {
                     act = true;
                 }
             }
+
+            q_ct1.memcpy(sv_purkinje, vms_purkinje, mem_size_purkinje).wait();
+            free(vms_purkinje);
+            #endif
         }
     }
 
@@ -1381,6 +1412,19 @@ void compute_pmj_current_purkinje_to_tissue(struct ode_solver *the_ode_solver, s
 
     if (the_ode_solver->use_sycl) {
         #ifdef COMPILE_SYCL
+        dpct::device_ext &dev_ct1 = dpct::get_current_device();
+        sycl::queue &q_ct1 = dev_ct1.default_queue();
+        real *vms;
+        uint32_t max_number_of_cells = the_ode_solver->original_num_cells;
+        size_t mem_size = max_number_of_cells * sizeof(real);
+
+        vms = (real *)malloc(mem_size);
+
+        OMP(parallel for)
+        for(uint32_t i = 0; i < n_active; i++) {
+            vms[ac[i]->sv_position] = (real)ac[i]->v;
+        }
+
         uint32_t num_of_purkinje_terminals = the_grid->purkinje->network->number_of_terminals;
         for(uint32_t i = 0; i < num_of_purkinje_terminals; i++) {
 
@@ -1392,7 +1436,7 @@ void compute_pmj_current_purkinje_to_tissue(struct ode_solver *the_ode_solver, s
             Gpmj = 1.0 / rpmj;
             for(uint32_t j = 0; j < num_tissue_cells; j++) {
                 uint32_t tissue_index = the_terminals[i].tissue_cells[j]->sv_position;
-                Ipmj += (sv[tissue_index * nodes] - ac_purkinje[purkinje_index]->v);
+                Ipmj += (vms[tissue_index] - ac_purkinje[purkinje_index]->v);
             }
             Ipmj *= (Gpmj / pmj_scale);
 
@@ -1403,6 +1447,9 @@ void compute_pmj_current_purkinje_to_tissue(struct ode_solver *the_ode_solver, s
                 ac[tissue_index]->b -= Ipmj;
             }
         }
+
+        q_ct1.memcpy(sv, vms, mem_size).wait();
+        free(vms);
         #endif
     }
     else {
@@ -1497,6 +1544,17 @@ void compute_pmj_current_tissue_to_purkinje(struct ode_solver *the_purkinje_ode_
 
     if (the_purkinje_ode_solver->use_sycl) {
     #ifdef COMPILE_SYCL
+        dpct::device_ext &dev_ct1 = dpct::get_current_device();
+        sycl::queue &q_ct1 = dev_ct1.default_queue();
+        
+        real *vms;
+        uint32_t max_number_of_cells = the_purkinje_ode_solver->original_num_cells;
+        size_t mem_size = max_number_of_cells * sizeof(real);
+
+        vms = (real *)malloc(mem_size);
+
+        q_ct1.memcpy(vms, sv, mem_size).wait();
+
         uint32_t num_of_purkinje_terminals = the_grid->purkinje->network->number_of_terminals;
         for(uint32_t i = 0; i < num_of_purkinje_terminals; i++) {
 
@@ -1508,13 +1566,15 @@ void compute_pmj_current_tissue_to_purkinje(struct ode_solver *the_purkinje_ode_
             Gpmj = 1.0 / rpmj;
             for(uint32_t j = 0; j < num_tissue_cells; j++) {
                 uint32_t tissue_index = the_terminals[i].tissue_cells[j]->sv_position;
-                Ipmj += (sv[purkinje_index * nodes] - ac[tissue_index]->v);
+                Ipmj += (vms[purkinje_index] - ac[tissue_index]->v);
             }
+            // Asymmetry of conduction across the PMJ
             Ipmj *= (Gpmj / (pmj_scale * asymm_ratio));
 
             // Add this current to the RHS of the Purkinje cell
             ac_purkinje[purkinje_index]->b -= Ipmj;
         }
+        free(vms);
     #endif
     }
     else {

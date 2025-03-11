@@ -16,39 +16,41 @@ extern "C" SET_ODE_INITIAL_CONDITIONS_SYCL(set_model_initial_conditions_sycl)
 
     uint32_t num_cells = solver->original_num_cells;
     
-    // TODO: Try to allocate the 'sv' array using 'malloc_device()'
-    //      For some strange reason when we allocate the 'solver->sv' on the GPU we are getting CUDA errors
-    //      when trying to initialize the values. Segmentation Fault error.
-    // Solution: 1) Using access buffers between host<->device; 2) Copying memory between host<->device;
-    solver->sv = (real*)malloc(NEQ*num_cells*sizeof(real));
-    sycl::buffer<real, 2> sv_buf(solver->sv, sycl::range<2>(num_cells,NEQ));
-
+    solver->sv = sycl::malloc_device<real>(num_cells*NEQ, q_ct1);
+    
     if (solver->sv) {
         const int BLOCK_SIZE = 32;
         const int GRID = (num_cells + BLOCK_SIZE - 1) / BLOCK_SIZE;
+        const int TOTAL_THREADS = BLOCK_SIZE*GRID;
 
         try {
             q_ct1.submit([&](sycl::handler& h) {
-                auto sv = sv_buf.get_access<sycl::access::mode::write>(h);
-                h.parallel_for(sycl::range<1>(num_cells), [=](sycl::id<1> i) {
-                    sv[i][0] = INITIAL_V; // V;       millivolt
-                    sv[i][1] = 0.f;       // M
-                    sv[i][2] = 0.75;      // H
-                    sv[i][3] = 0.75f;     // J
-                    sv[i][4] = 0.f;       // Xr1
-                    sv[i][5] = 1.f;       // Xr2
-                    sv[i][6] = 0.f;       // Xs
-                    sv[i][7] = 1.f;       // S
-                    sv[i][8] = 0.f;       // R
-                    sv[i][9] = 0.f;       // D
-                    sv[i][10] = 1.f;      // F
-                    sv[i][11] = 1.f;      // FCa
-                    sv[i][12] = 1.f;      // G
-                    sv[i][13] = 0.0002;   // Cai
-                    sv[i][14] = 0.2f;     // CaSR
-                    sv[i][15] = 11.6f;    // Nai
-                    sv[i][16] = 138.3f;   // Ki
-                });
+                real *sv = solver->sv;
+                h.parallel_for(
+                    sycl::nd_range<1>(sycl::range<1>(TOTAL_THREADS), sycl::range<1>(BLOCK_SIZE)),
+                    [=](sycl::nd_item<1> item) {
+                        int i = item.get_global_id(0);
+                        if (i < num_cells) {
+                            sv[0*num_cells+i] = INITIAL_V; // V millivolt
+                            sv[1*num_cells+i] = 0.f;       // M
+                            sv[2*num_cells+i] = 0.75;      // H
+                            sv[3*num_cells+i] = 0.75f;     // J
+                            sv[4*num_cells+i] = 0.f;       // Xr1
+                            sv[5*num_cells+i] = 1.f;       // Xr2
+                            sv[6*num_cells+i] = 0.f;       // Xs
+                            sv[7*num_cells+i] = 1.f;       // S
+                            sv[8*num_cells+i] = 0.f;       // R
+                            sv[9*num_cells+i] = 0.f;       // D
+                            sv[10*num_cells+i] = 1.f;      // F
+                            sv[11*num_cells+i] = 1.f;      // FCa
+                            sv[12*num_cells+i] = 1.f;      // G
+                            sv[13*num_cells+i] = 0.0002;   // Cai
+                            sv[14*num_cells+i] = 0.2f;     // CaSR
+                            sv[15*num_cells+i] = 11.6f;    // Nai
+                            sv[16*num_cells+i] = 138.3f;   // Ki
+                        }
+                    }
+                );
             }).wait();
         } catch (sycl::exception &e) {
             printf("SYCL exception: %s\n", e.what());
@@ -68,7 +70,6 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     sycl::queue &q_ct1 = dev_ct1.default_queue();
 
     // Using Unifed Shared Memory (USM) instead of access buffer to improve performance
-    real *d_sv = sycl::malloc_device<real>(num_cells_to_solve*NEQ, q_ct1);
     real *d_stim = sycl::malloc_device<real>(num_cells_to_solve, q_ct1);
     uint32_t *d_cells_to_solve = NULL;
     if (cells_to_solve) {
@@ -77,7 +78,6 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     }
     
     // Copy initial data to device
-    q_ct1.memcpy(d_sv, sv, num_cells_to_solve*NEQ*sizeof(real));
     q_ct1.memcpy(d_stim, stim_currents, num_cells_to_solve*sizeof(real));
 
     // Define block and grid sizes
@@ -101,22 +101,18 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
 
                     #pragma unroll
                     for (int n = 0; n < num_steps; ++n) {
-                        RHS_sycl(d_sv, d_stim[i], rDY, sv_id, dt);
+                        RHS_sycl(sv, d_stim[i], rDY, sv_id, dt, num_cells_to_solve);
 
                         // Update state variables
                         #pragma unroll
                         for (int j = 0; j < NEQ; j++) {
-                            d_sv[sv_id * NEQ + j] = rDY[j];
+                            sv[j * num_cells_to_solve + i] = rDY[j];
                         }
                     }
                 });
         }).wait();
 
-        // Copy results back
-        q_ct1.memcpy(sv, d_sv, num_cells_to_solve * NEQ * sizeof(real));
-
         // Free device memory
-        sycl::free(d_sv, q_ct1);
         sycl::free(d_stim, q_ct1);
         if (d_cells_to_solve) sycl::free(d_cells_to_solve, q_ct1);
 
@@ -125,25 +121,25 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     }
 }
 
-inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, real dt) {
+inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, real dt, int num_cells) {
     // State variables
-    real svolt = Y[sv_id * NEQ + 0];
-    real sm    = Y[sv_id * NEQ + 1];
-    real sh    = Y[sv_id * NEQ + 2];
-    real sj    = Y[sv_id * NEQ + 3];
-    real sxr1  = Y[sv_id * NEQ + 4];
-    real sxr2  = Y[sv_id * NEQ + 5];
-    real sxs   = Y[sv_id * NEQ + 6];
-    real ss    = Y[sv_id * NEQ + 7];
-    real sr    = Y[sv_id * NEQ + 8];
-    real sd    = Y[sv_id * NEQ + 9];
-    real sf    = Y[sv_id * NEQ + 10];
-    real sfca  = Y[sv_id * NEQ + 11];
-    real sg    = Y[sv_id * NEQ + 12];
-    real Cai   = Y[sv_id * NEQ + 13];
-    real CaSR  = Y[sv_id * NEQ + 14];
-    real Nai   = Y[sv_id * NEQ + 15];
-    real Ki    = Y[sv_id * NEQ + 16];
+    real svolt = Y[0 * num_cells + sv_id];
+    real sm    = Y[1 * num_cells + sv_id];
+    real sh    = Y[2 * num_cells + sv_id];
+    real sj    = Y[3 * num_cells + sv_id];
+    real sxr1  = Y[4 * num_cells + sv_id];
+    real sxr2  = Y[5 * num_cells + sv_id];
+    real sxs   = Y[6 * num_cells + sv_id];
+    real ss    = Y[7 * num_cells + sv_id];
+    real sr    = Y[8 * num_cells + sv_id];
+    real sd    = Y[9 * num_cells + sv_id];
+    real sf    = Y[10 * num_cells + sv_id];
+    real sfca  = Y[11 * num_cells + sv_id];
+    real sg    = Y[12 * num_cells + sv_id];
+    real Cai   = Y[13 * num_cells + sv_id];
+    real CaSR  = Y[14 * num_cells + sv_id];
+    real Nai   = Y[15 * num_cells + sv_id];
+    real Ki    = Y[16 * num_cells + sv_id];
 
     //External concentrations
     real Ko=5.4;

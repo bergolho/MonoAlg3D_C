@@ -38,9 +38,17 @@ struct config {
     real_cpu current_t;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct config *alloc_and_init_config_data();
 void free_config_data(struct config *cm);
 void init_config_functions(struct config *config, char *default_lib, char *config_type);
+
+#ifdef __cplusplus
+}
+#endif
 
 #define LOG_COMMON_CONFIG(tag, s)                                                                                                                              \
     do {                                                                                                                                                       \

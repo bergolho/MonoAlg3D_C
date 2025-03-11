@@ -121,7 +121,7 @@ void derefine_cell_bunch (struct cell_node *first_bunch_cell, ui32_array *free_s
         struct cell_node *ws = (struct cell_node *) w->neighbours[BACK];
         struct cell_node *sb = (struct cell_node *) s->neighbours[LEFT];
 
-        struct cell_node *wsb = ws->neighbours[LEFT];
+        struct cell_node *wsb = (struct cell_node *)ws->neighbours[LEFT];
 
         arrput(*free_sv_positions, w->sv_position);
         arrput(*free_sv_positions, b->sv_position);
