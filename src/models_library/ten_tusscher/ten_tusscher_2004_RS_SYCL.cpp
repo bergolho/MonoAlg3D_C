@@ -99,12 +99,10 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
                     // Private memory for fast access
                     real rDY[NEQ];
 
-                    #pragma unroll
                     for (int n = 0; n < num_steps; ++n) {
                         RHS_sycl(sv, d_stim[i], rDY, sv_id, dt, num_cells_to_solve);
 
                         // Update state variables
-                        #pragma unroll
                         for (int j = 0; j < NEQ; j++) {
                             sv[j * num_cells_to_solve + i] = rDY[j];
                         }
@@ -319,8 +317,8 @@ inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, real dt, i
 //    real BufsrKbufsr=Bufsr*Kbufsr;
 //    const real Kbufsrsquare=Kbufsr*Kbufsr;
 //    const real Kbufsr2=2*Kbufsr;
-    const real exptaufca=sycl::exp(-dt/taufca);
-    const real exptaug=sycl::exp(-dt/taug);
+    const real exptaufca=exp(-dt/taufca);
+    const real exptaug=exp(-dt/taug);
 
     real sItot;
 
@@ -329,26 +327,26 @@ inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, real dt, i
     Ena=RTONF*(log((Nao/Nai)));
     Eks=RTONF*(log((Ko+pKNa*Nao)/(Ki+pKNa*Nai)));
     Eca=0.5*RTONF*(log((Cao/Cai)));
-    Ak1=0.1/(1.+sycl::exp(0.06*(svolt-Ek-200)));
-    Bk1=(3.*sycl::exp(0.0002*(svolt-Ek+100))+
-         sycl::exp(0.1*(svolt-Ek-10)))/(1.+sycl::exp(-0.5*(svolt-Ek)));
+    Ak1=0.1/(1.+exp(0.06*(svolt-Ek-200)));
+    Bk1=(3.*exp(0.0002*(svolt-Ek+100))+
+         exp(0.1*(svolt-Ek-10)))/(1.+exp(-0.5*(svolt-Ek)));
     rec_iK1=Ak1/(Ak1+Bk1);
-    rec_iNaK=(1./(1.+0.1245*sycl::exp(-0.1*svolt*F/(R*T))+0.0353*sycl::exp(-svolt*F/(R*T))));
-    rec_ipK=1./(1.+sycl::exp((25-svolt)/5.98));
+    rec_iNaK=(1./(1.+0.1245*exp(-0.1*svolt*F/(R*T))+0.0353*exp(-svolt*F/(R*T))));
+    rec_ipK=1./(1.+exp((25-svolt)/5.98));
 
 
     //Compute currents
     INa=GNa*sm*sm*sm*sh*sj*(svolt-Ena);
     ICaL=GCaL*sd*sf*sfca*4*svolt*(F*F/(R*T))*
-         (sycl::exp(2*svolt*F/(R*T))*Cai-0.341*Cao)/(sycl::exp(2*svolt*F/(R*T))-1.);
+         (exp(2*svolt*F/(R*T))*Cai-0.341*Cao)/(exp(2*svolt*F/(R*T))-1.);
     Ito=Gto*sr*ss*(svolt-Ek);
-    IKr=Gkr*sycl::sqrt(Ko/5.4)*sxr1*sxr2*(svolt-Ek);
+    IKr=Gkr*sqrt(Ko/5.4)*sxr1*sxr2*(svolt-Ek);
     IKs=Gks*sxs*sxs*(svolt-Eks);
     IK1=GK1*rec_iK1*(svolt-Ek);
     INaCa=knaca*(1./(KmNai*KmNai*KmNai+Nao*Nao*Nao))*(1./(KmCa+Cao))*
-          (1./(1+ksat*sycl::exp((n-1)*svolt*F/(R*T))))*
-          (sycl::exp(n*svolt*F/(R*T))*Nai*Nai*Nai*Cao-
-           sycl::exp((n-1)*svolt*F/(R*T))*Nao*Nao*Nao*Cai*2.5);
+          (1./(1+ksat*exp((n-1)*svolt*F/(R*T))))*
+          (exp(n*svolt*F/(R*T))*Nai*Nai*Nai*Cao-
+           exp((n-1)*svolt*F/(R*T))*Nao*Nao*Nao*Cai*2.5);
     INaK=knak*(Ko/(Ko+KmK))*(Nai/(Nai+KmNa))*rec_iNaK;
     IpCa=GpCa*Cai/(KpCa+Cai);
     IpK=GpK*rec_ipK*(svolt-Ek);
@@ -385,12 +383,12 @@ inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, real dt, i
     dCaSR=dt*(Vc/Vsr)*CaSRCurrent;
     bjsr=Bufsr-CaCSQN-dCaSR-CaSR+Kbufsr;
     cjsr=Kbufsr*(CaCSQN+dCaSR+CaSR);
-    CaSR=(sycl::sqrt(bjsr*bjsr+4.*cjsr)-bjsr)/2.;
+    CaSR=(sqrt(bjsr*bjsr+4.*cjsr)-bjsr)/2.;
     CaBuf=Bufc*Cai/(Cai+Kbufc);
     dCai=dt*(CaCurrent-CaSRCurrent);
     bc=Bufc-CaBuf-dCai-Cai+Kbufc;
     cc=Kbufc*(CaBuf+dCai+Cai);
-    Cai=(sycl::sqrt(bc*bc+4*cc)-bc)/2;
+    Cai=(sqrt(bc*bc+4*cc)-bc)/2;
 
 
 
@@ -401,102 +399,102 @@ inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, real dt, i
     Ki+=dt*dKi;
 
     //compute steady state values and time constants
-    AM=1./(1.+sycl::exp((-60.-svolt)/5.));
-    BM=0.1/(1.+sycl::exp((svolt+35.)/5.))+0.10/(1.+sycl::exp((svolt-50.)/200.));
+    AM=1./(1.+exp((-60.-svolt)/5.));
+    BM=0.1/(1.+exp((svolt+35.)/5.))+0.10/(1.+exp((svolt-50.)/200.));
     TAU_M=AM*BM;
-    M_INF=1./((1.+sycl::exp((-56.86-svolt)/9.03))*(1.+sycl::exp((-56.86-svolt)/9.03)));
+    M_INF=1./((1.+exp((-56.86-svolt)/9.03))*(1.+exp((-56.86-svolt)/9.03)));
     if (svolt>=-40.)
     {
         AH_1=0.;
-        BH_1=(0.77/(0.13*(1.+sycl::exp(-(svolt+10.66)/11.1))));
+        BH_1=(0.77/(0.13*(1.+exp(-(svolt+10.66)/11.1))));
         TAU_H= 1.0/(AH_1+BH_1);
     }
     else
     {
-        AH_2=(0.057*sycl::exp(-(svolt+80.)/6.8));
-        BH_2=(2.7*sycl::exp(0.079*svolt)+(3.1e5)*sycl::exp(0.3485*svolt));
+        AH_2=(0.057*exp(-(svolt+80.)/6.8));
+        BH_2=(2.7*exp(0.079*svolt)+(3.1e5)*exp(0.3485*svolt));
         TAU_H=1.0/(AH_2+BH_2);
     }
-    H_INF=1./((1.+sycl::exp((svolt+71.55)/7.43))*(1.+sycl::exp((svolt+71.55)/7.43)));
+    H_INF=1./((1.+exp((svolt+71.55)/7.43))*(1.+exp((svolt+71.55)/7.43)));
     if(svolt>=-40.)
     {
         AJ_1=0.;
-        BJ_1=(0.6*sycl::exp((0.057)*svolt)/(1.+sycl::exp(-0.1*(svolt+32.))));
+        BJ_1=(0.6*exp((0.057)*svolt)/(1.+exp(-0.1*(svolt+32.))));
         TAU_J= 1.0/(AJ_1+BJ_1);
     }
     else
     {
-        AJ_2=(((-2.5428e4)*sycl::exp(0.2444*svolt)-(6.948e-6)*
-                                             sycl::exp(-0.04391*svolt))*(svolt+37.78)/
-              (1.+sycl::exp(0.311*(svolt+79.23))));
-        BJ_2=(0.02424*sycl::exp(-0.01052*svolt)/(1.+sycl::exp(-0.1378*(svolt+40.14))));
+        AJ_2=(((-2.5428e4)*exp(0.2444*svolt)-(6.948e-6)*
+                                             exp(-0.04391*svolt))*(svolt+37.78)/
+              (1.+exp(0.311*(svolt+79.23))));
+        BJ_2=(0.02424*exp(-0.01052*svolt)/(1.+exp(-0.1378*(svolt+40.14))));
         TAU_J= 1.0/(AJ_2+BJ_2);
     }
     J_INF=H_INF;
 
-    Xr1_INF=1./(1.+sycl::exp((-26.-svolt)/7.));
-    axr1=450./(1.+sycl::exp((-45.-svolt)/10.));
-    bxr1=6./(1.+sycl::exp((svolt-(-30.))/11.5));
+    Xr1_INF=1./(1.+exp((-26.-svolt)/7.));
+    axr1=450./(1.+exp((-45.-svolt)/10.));
+    bxr1=6./(1.+exp((svolt-(-30.))/11.5));
     TAU_Xr1=axr1*bxr1;
-    Xr2_INF=1./(1.+sycl::exp((svolt-(-88.))/24.));
-    axr2=3./(1.+sycl::exp((-60.-svolt)/20.));
-    bxr2=1.12/(1.+sycl::exp((svolt-60.)/20.));
+    Xr2_INF=1./(1.+exp((svolt-(-88.))/24.));
+    axr2=3./(1.+exp((-60.-svolt)/20.));
+    bxr2=1.12/(1.+exp((svolt-60.)/20.));
     TAU_Xr2=axr2*bxr2;
 
-    Xs_INF=1./(1.+sycl::exp((-5.-svolt)/14.));
-    Axs=1100./(sycl::sqrt(1.+sycl::exp((-10.-svolt)/6)));
-    Bxs=1./(1.+sycl::exp((svolt-60.)/20.));
+    Xs_INF=1./(1.+exp((-5.-svolt)/14.));
+    Axs=1100./(sqrt(1.+exp((-10.-svolt)/6)));
+    Bxs=1./(1.+exp((svolt-60.)/20.));
     TAU_Xs=Axs*Bxs;
 
 #ifdef EPI
-    R_INF=1./(1.+sycl::exp((20-svolt)/6.));
-    S_INF=1./(1.+sycl::exp((svolt+20)/5.));
-    TAU_R=9.5*sycl::exp(-(svolt+40.)*(svolt+40.)/1800.)+0.8;
-    TAU_S=85.*sycl::exp(-(svolt+45.)*(svolt+45.)/320.)+5./(1.+sycl::exp((svolt-20.)/5.))+3.;
+    R_INF=1./(1.+exp((20-svolt)/6.));
+    S_INF=1./(1.+exp((svolt+20)/5.));
+    TAU_R=9.5*exp(-(svolt+40.)*(svolt+40.)/1800.)+0.8;
+    TAU_S=85.*exp(-(svolt+45.)*(svolt+45.)/320.)+5./(1.+exp((svolt-20.)/5.))+3.;
 #endif
 #ifdef ENDO
-    R_INF=1./(1.+sycl::exp((20-svolt)/6.));
-    S_INF=1./(1.+sycl::exp((svolt+28)/5.));
-    TAU_R=9.5*sycl::exp(-(svolt+40.)*(svolt+40.)/1800.)+0.8;
-    TAU_S=1000.*sycl::exp(-(svolt+67)*(svolt+67)/1000.)+8.;
+    R_INF=1./(1.+exp((20-svolt)/6.));
+    S_INF=1./(1.+exp((svolt+28)/5.));
+    TAU_R=9.5*exp(-(svolt+40.)*(svolt+40.)/1800.)+0.8;
+    TAU_S=1000.*exp(-(svolt+67)*(svolt+67)/1000.)+8.;
 #endif
 #ifdef MCELL
-    R_INF=1./(1.+sycl::exp((20-svolt)/6.));
-    S_INF=1./(1.+sycl::exp((svolt+20)/5.));
-    TAU_R=9.5*sycl::exp(-(svolt+40.)*(svolt+40.)/1800.)+0.8;
-    TAU_S=85.*sycl::exp(-(svolt+45.)*(svolt+45.)/320.)+5./(1.+sycl::exp((svolt-20.)/5.))+3.;
+    R_INF=1./(1.+exp((20-svolt)/6.));
+    S_INF=1./(1.+exp((svolt+20)/5.));
+    TAU_R=9.5*exp(-(svolt+40.)*(svolt+40.)/1800.)+0.8;
+    TAU_S=85.*exp(-(svolt+45.)*(svolt+45.)/320.)+5./(1.+exp((svolt-20.)/5.))+3.;
 #endif
 
 
-    D_INF=1./(1.+sycl::exp((-5-svolt)/7.5));
-    Ad=1.4/(1.+sycl::exp((-35-svolt)/13))+0.25;
-    Bd=1.4/(1.+sycl::exp((svolt+5)/5));
-    Cd=1./(1.+sycl::exp((50-svolt)/20));
+    D_INF=1./(1.+exp((-5-svolt)/7.5));
+    Ad=1.4/(1.+exp((-35-svolt)/13))+0.25;
+    Bd=1.4/(1.+exp((svolt+5)/5));
+    Cd=1./(1.+exp((50-svolt)/20));
     TAU_D=Ad*Bd+Cd;
-    F_INF=1./(1.+sycl::exp((svolt+20)/7));
-    TAU_F=1125*sycl::exp(-(svolt+27)*(svolt+27)/300)+80+165/(1.+sycl::exp((25-svolt)/10));
+    F_INF=1./(1.+exp((svolt+20)/7));
+    TAU_F=1125*exp(-(svolt+27)*(svolt+27)/300)+80+165/(1.+exp((25-svolt)/10));
 
 
-    FCa_INF=(1./(1.+sycl::pow((Cai/0.000325),8))+
-             0.1/(1.+sycl::exp((Cai-0.0005)/0.0001))+
-             0.20/(1.+sycl::exp((Cai-0.00075)/0.0008))+
+    FCa_INF=(1./(1.+pow((Cai/0.000325),8))+
+             0.1/(1.+exp((Cai-0.0005)/0.0001))+
+             0.20/(1.+exp((Cai-0.00075)/0.0008))+
              0.23 )/1.46;
     if(Cai<0.00035)
-        G_INF=1./(1.+sycl::pow((Cai/0.00035),6));
+        G_INF=1./(1.+pow((Cai/0.00035),6));
     else
-        G_INF=1./(1.+sycl::pow((Cai/0.00035),16));
+        G_INF=1./(1.+pow((Cai/0.00035),16));
 
     //Update gates
-    dY[1]  = M_INF-(M_INF-sm)*sycl::exp(-dt/TAU_M);
-    dY[2]  = H_INF-(H_INF-sh)*sycl::exp(-dt/TAU_H);
-    dY[3]  = J_INF-(J_INF-sj)*sycl::exp(-dt/TAU_J);
-    dY[4]  = Xr1_INF-(Xr1_INF-sxr1)*sycl::exp(-dt/TAU_Xr1);
-    dY[5]  = Xr2_INF-(Xr2_INF-sxr2)*sycl::exp(-dt/TAU_Xr2);
-    dY[6]  = Xs_INF-(Xs_INF-sxs)*sycl::exp(-dt/TAU_Xs);
-    dY[7]  = S_INF-(S_INF-ss)*sycl::exp(-dt/TAU_S);
-    dY[8]  = R_INF-(R_INF-sr)*sycl::exp(-dt/TAU_R);
-    dY[9]  = D_INF-(D_INF-sd)*sycl::exp(-dt/TAU_D);
-    dY[10] = F_INF-(F_INF-sf)*sycl::exp(-dt/TAU_F);
+    dY[1]  = M_INF-(M_INF-sm)*exp(-dt/TAU_M);
+    dY[2]  = H_INF-(H_INF-sh)*exp(-dt/TAU_H);
+    dY[3]  = J_INF-(J_INF-sj)*exp(-dt/TAU_J);
+    dY[4]  = Xr1_INF-(Xr1_INF-sxr1)*exp(-dt/TAU_Xr1);
+    dY[5]  = Xr2_INF-(Xr2_INF-sxr2)*exp(-dt/TAU_Xr2);
+    dY[6]  = Xs_INF-(Xs_INF-sxs)*exp(-dt/TAU_Xs);
+    dY[7]  = S_INF-(S_INF-ss)*exp(-dt/TAU_S);
+    dY[8]  = R_INF-(R_INF-sr)*exp(-dt/TAU_R);
+    dY[9]  = D_INF-(D_INF-sd)*exp(-dt/TAU_D);
+    dY[10] = F_INF-(F_INF-sf)*exp(-dt/TAU_F);
     fcaold= sfca;
     sfca = FCa_INF-(FCa_INF-sfca)*exptaufca;
     if(sfca>fcaold && (svolt)>-37.0)

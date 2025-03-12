@@ -105,7 +105,6 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     }
 }
 
-// Remember to use: sycl::pow, sycl::exp, ...
 inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, int num_cells) {
 
     // Load state variables
@@ -122,7 +121,7 @@ inline void RHS_sycl(real *Y, real stim_current, real *dY, int sv_id, int num_ce
 
     // Algebraics
     real J_stim = stim_current;
-    real J_in = (h * (sycl::pow(V, 2.00000) * (1.00000 - V))) / tau_in;
+    real J_in = (h * (pow(V, 2.00000) * (1.00000 - V))) / tau_in;
     real J_out = - (V / tau_out);
 
     // Compute rates
