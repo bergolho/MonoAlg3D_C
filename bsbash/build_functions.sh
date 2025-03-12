@@ -259,8 +259,9 @@ COMPILE_EXECUTABLE () {
 	for dep in $DYNAMIC_DEPS_LIST; do
 		DYNAMIC_DEPS+=("-l${dep}")
 	done
-	if [ -n $IS_SYCL ]; then
-		DYNAMIC_DEPS="-lstdc++ -lsycl ${DYNAMIC_DEPS}"
+	
+	if [ -n "$IS_SYCL" ]; then
+		DYNAMIC_DEPS="-lsycl ${DYNAMIC_DEPS}"
 	fi
 
 	local EXTRA_LIBRARY_PATH=()
