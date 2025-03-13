@@ -1061,7 +1061,7 @@ struct extra_data_for_torord_gksgkrtjca_twave * set_common_torord_gksgkrtjca_twa
 
     // (DTI032) Basic cycle length => 810ms
     if (cycle_length == 810) {
-        printf("[ToRORd] Setting hacked initial conditions for DTI032 CL 810!!!");
+        printf("[ToRORd] Setting hacked initial conditions for DTI032 CL 810!!!\n");
         extra_data->initial_ss_endo[0 ]  = -88.676; // Vm
         extra_data->initial_ss_endo[1 ]  = 12.084; // Nai
         extra_data->initial_ss_endo[2 ]  = 12.085; // Nass
@@ -1107,7 +1107,7 @@ struct extra_data_for_torord_gksgkrtjca_twave * set_common_torord_gksgkrtjca_twa
         extra_data->initial_ss_endo[42] = -3.6032e-20; // Jrel_p
     }
     else if (cycle_length == 909) {
-        printf("[ToRORd] Setting hacked initial conditions for DTI024 CL 909!!!");
+        printf("[ToRORd] Setting hacked initial conditions for DTI024 CL 909!!!\n");
         extra_data->initial_ss_endo[0 ]  = -88.606; // Vm
         extra_data->initial_ss_endo[1 ]  = 11.951; // Nai
         extra_data->initial_ss_endo[2 ]  = 11.951; // Nass
@@ -1152,7 +1152,7 @@ struct extra_data_for_torord_gksgkrtjca_twave * set_common_torord_gksgkrtjca_twa
         extra_data->initial_ss_endo[41] = 4.9031e-05; // ikr_i
         extra_data->initial_ss_endo[42] = -1.724e-20; // Jrel_p
     } else if (cycle_length == 1250) {
-	    printf("[ToRORd] Setting hacked initial conditions for DTI004 CL 1250!!!");
+	    printf("[ToRORd] Setting hacked initial conditions for DTI004 CL 1250!!!\n");
         extra_data->initial_ss_endo[0 ]  = -88.606; // Vm
         extra_data->initial_ss_endo[1 ]  = 11.523; // Nai
         extra_data->initial_ss_endo[2 ]  = 11.523; // Nass
@@ -1197,7 +1197,7 @@ struct extra_data_for_torord_gksgkrtjca_twave * set_common_torord_gksgkrtjca_twa
         extra_data->initial_ss_endo[41] = 6.0064e-06; // ikr_i
         extra_data->initial_ss_endo[42] = -8.5262e-21; // Jrel_p
     }else {
-        printf("[ToRORd] Setting default initial conditions!!!");
+        printf("[ToRORd] Setting default initial conditions!!!\n");
         // Set the default initial conditions from Matlab (celltype = ENDO)
         extra_data->initial_ss_endo[0]  = -88.6369922306458;
         extra_data->initial_ss_endo[1]  = 11.8973412949238;
