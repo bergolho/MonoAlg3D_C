@@ -83,11 +83,11 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     uint32_t *d_cells_to_solve = NULL;
     if (cells_to_solve) {
         d_cells_to_solve = sycl::malloc_device<uint32_t>(num_cells_to_solve, q_ct1);
-        q_ct1.memcpy(d_cells_to_solve, cells_to_solve, num_cells_to_solve*sizeof(uint32_t));
+        q_ct1.memcpy(d_cells_to_solve, cells_to_solve, num_cells_to_solve*sizeof(uint32_t)).wait();
     }
     
     // Copy initial data to device
-    q_ct1.memcpy(d_stim, stim_currents, num_cells_to_solve*sizeof(real));
+    q_ct1.memcpy(d_stim, stim_currents, num_cells_to_solve*sizeof(real)).wait();
 
     // Copy the extra data from host memory
     real *fibs = NULL;
@@ -132,10 +132,10 @@ extern "C" SOLVE_MODEL_ODES(solve_model_odes_sycl) {
     }
 
     d_extra_par = sycl::malloc_device<real>(num_extra_parameters, q_ct1);
-    q_ct1.memcpy(d_extra_par, extra_par, num_extra_parameters*sizeof(real));
+    q_ct1.memcpy(d_extra_par, extra_par, num_extra_parameters*sizeof(real)).wait();
 
     d_fibs = sycl::malloc_device<real>(num_cells_to_solve, q_ct1);
-    q_ct1.memcpy(d_fibs, fibs, num_cells_to_solve*sizeof(real));
+    q_ct1.memcpy(d_fibs, fibs, num_cells_to_solve*sizeof(real)).wait();
 
     // Define block and grid sizes
     const int BLOCK_SIZE = 32; 

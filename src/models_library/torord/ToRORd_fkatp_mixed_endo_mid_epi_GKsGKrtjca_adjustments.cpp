@@ -19,8 +19,9 @@ extern "C" SET_ODE_INITIAL_CONDITIONS_SYCL(set_model_initial_conditions_sycl)
     // Allocate memory for state vector
     bool adaptive = solver->adaptive;
     if (adaptive) {
-        log_info("Using Adaptive timestep to solve the ODEs\n");
-        solver->sv = sycl::malloc_device<real>(num_volumes*(NEQ+3), q_ct1);
+        log_error_and_exit("[-] Adaptive timestep is not implemented for this model yet!\n");
+        //log_info("Using Adaptive timestep to solve the ODEs\n");
+        //solver->sv = sycl::malloc_device<real>(num_volumes*(NEQ+3), q_ct1);
     }
     else {
         log_info("Using Fixed timestep to solve the ODEs\n");
