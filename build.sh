@@ -108,12 +108,8 @@ for i in "${BUILD_ARGS[@]}"; do
             ;;
         sycl)
             COMPILE_SIMULATOR='y'
-<<<<<<< HEAD
-	    COMPILE_MPI='y'
-=======
             COMPILE_GUI='y'
     	    COMPILE_MPI='y'
->>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
             DISABLE_CUDA='y'
             USE_SYCL='y'
             ;;
@@ -130,11 +126,7 @@ DEFAULT_C_FLAGS="-fopenmp -std=gnu99 -fno-strict-aliasing  -Wall -Wno-stringop-t
 if [ -n "$USE_SYCL" ]; then
     C_COMPILER="icx"
     CXX_COMPILER="icpx"
-<<<<<<< HEAD
-    DEFAULT_C_FLAGS="-qopenmp -fno-strict-aliasing  -Wall -Wno-unused-function -Wno-unused-result -Wno-switch -Werror=implicit-function-declaration"
-=======
     DEFAULT_C_FLAGS="-qopenmp -fno-strict-aliasing  -Wall -Wno-unused-function -Wno-unused-result -Wno-switch -Werror=implicit-function-declaration -Wno-incompatible-pointer-types"
->>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 fi
 
 RUNTIME_OUTPUT_DIRECTORY="$ROOT_DIR/bin"
@@ -287,11 +279,7 @@ fi
 
 
 if [ -n "$COMPILE_SIMULATOR" ]; then
-<<<<<<< HEAD
-    COMPILE_EXECUTABLE "MonoAlg3D" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "" "$USE_SYCL"
-=======
     COMPILE_EXECUTABLE "MonoAlg3D" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" ""
->>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 fi
 
 if [ -n "$COMPILE_MPI" ]; then
@@ -309,15 +297,9 @@ if [ -n "$COMPILE_MPI" ]; then
       fi
 
       if [ -z "$MPI_INCLUDE_PATH" ]; then
-<<<<<<< HEAD
-	 COMPILE_EXECUTABLE "MonoAlg3D_batch" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "$INCLUDE_P" "$USE_SYCL"
-      else
-	 COMPILE_EXECUTABLE "MonoAlg3D_batch" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "$INCLUDE_P -I$MPI_INCLUDE_PATH" "$USE_SYCL"
-=======
 	    COMPILE_EXECUTABLE "MonoAlg3D_batch" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "$INCLUDE_P"
       else
     	 COMPILE_EXECUTABLE "MonoAlg3D_batch" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "$INCLUDE_P -I$MPI_INCLUDE_PATH"
->>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
       fi
 
   fi
