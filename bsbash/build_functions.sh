@@ -343,13 +343,18 @@ COMPILE_EXECUTABLE () {
 		local MY_C_FLAGS="$C_FLAGS $EXTRA_C_FLAGS"
 		local COMPILER_COMMAND="${C_COMPILER} $MY_C_FLAGS $SOURCES ${STATIC_DEPS[*]}  -o $BUILD_DIR/${EXECUTABLE_NAME} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]} -Wl,-rpath=$LIBRARY_OUTPUT_DIRECTORY"
 
+<<<<<<< HEAD
 		#if [ -n $IS_SYCL ]; then
 		#	MY_C_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda $MY_C_FLAGS"
 		#	COMPILER_COMMAND="${CXX_COMPILER} $MY_C_FLAGS $SOURCES ${STATIC_DEPS[*]}  -o $BUILD_DIR/${EXECUTABLE_NAME} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]} -Wl,-rpath=$LIBRARY_OUTPUT_DIRECTORY"
 		#fi
+=======
+		local COMPILER_COMMAND="$C_COMPILER $MY_C_FLAGS $SOURCES ${STATIC_DEPS[*]}  -o $BUILD_DIR/${EXECUTABLE_NAME} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]} -Wl,-rpath=$LIBRARY_OUTPUT_DIRECTORY"
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 
-		ECHO_AND_EXEC_COMMAND "${COMPILER_COMMAND}"
-		touch "$TIME_FILE"
+        ECHO_AND_EXEC_COMMAND "${COMPILER_COMMAND}"
+
+        touch "$TIME_FILE"
 
 		if [ -n "$WRITE_COMPILE_COMMANDS" ] ; then
 			ADD_COMPILE_COMMAND "$COMPILER_COMMAND"  "$PWD/${SOURCES}"
@@ -549,7 +554,11 @@ COMPILE_SHARED_LIB () {
 		fi
 	done
 
+<<<<<<< HEAD
 	if [[ -n "$IS_CUDA" ]] || [[ -n $IS_SYCL ]]; then
+=======
+	if [ -n "$IS_CUDA" ] || [ -n "$IS_SYCL" ]; then
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 		LINKER=$CXX_COMPILER
 	else
 		LINKER=$C_COMPILER
@@ -558,6 +567,7 @@ COMPILE_SHARED_LIB () {
 	if [ -n "$ANY_COMPILED_LOCAL" ]; then
 		PRINT_INFO "LINKING SHARED LIB $LIB_NAME"
 
+<<<<<<< HEAD
 		ALL_FLAGS="$C_FLAGS -shared -o $LIB_PATH ${OBJECTS[*]} ${STATIC_DEPS[*]} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]}"
 		if [ -n "$IS_SYCL" ]; then
 			# TODO: Here we might have a problem ...
@@ -567,6 +577,13 @@ COMPILE_SHARED_LIB () {
 			ALL_FLAGS="-fsycl ${ALL_FLAGS}"
 			#ALL_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda ${ALL_FLAGS}"
 		fi
+=======
+	if [ -n "$IS_SYCL" ]; then
+		ALL_FLAGS="-fPIC -fsycl -fsycl-targets=nvptx64-nvidia-cuda,x86_64,spir64 $C_FLAGS -shared -o $LIB_PATH ${OBJECTS[*]} ${STATIC_DEPS[*]} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]}"
+	else
+		ALL_FLAGS="-fPIC $C_FLAGS -shared -o $LIB_PATH ${OBJECTS[*]} ${STATIC_DEPS[*]} ${EXTRA_LIBRARY_PATH[*]} ${DYNAMIC_DEPS[*]}"
+	fi
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 
 		ECHO_AND_EXEC_COMMAND "$LINKER $ALL_FLAGS"
 

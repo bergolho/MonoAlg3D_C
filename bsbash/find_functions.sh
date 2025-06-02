@@ -148,11 +148,20 @@ FIND_SYCL() {
 	echo "Configuring SYCL enviroment ..."
 	. ${SYCL_SETVARS_PATH} --include-intel-llvm --force
 	SYCL_FOUND="y"
+<<<<<<< HEAD
 	SYCL_INCLUDE_PATH="/opt/intel/oneapi/compiler/2025.0/include"
 	SYCL_LIBRARY_PATH="/opt/intel/oneapi/compiler/2025.0/lib"
+=======
+	SYCL_INCLUDE_PATH="/opt/oneapi/compiler/2025.0/include"
+	SYCL_LIBRARY_PATH="/opt/oneapi/compiler/2025.0/lib"
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 	ICPX=$(which icpx)
 	export SYCL_FOUND
 	export SYCL_INCLUDE_PATH
 	export SYCL_LIBRARY_PATH
   fi
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf

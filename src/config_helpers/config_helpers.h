@@ -26,6 +26,10 @@ bool get_matrix_parameter(real_cpu **v, const char *parameter, int nlin, int nco
 }
 #endif
 
+#ifdef __cplusplus
+}
+#endif
+
 #define STRINGS_EQUAL(str1, str2) (strcmp((str1), (str2)) == 0)
 
 #define IS_TRUE(str) (strcmp((str), "true") == 0 || strcmp((str), "yes") == 0 || strcmp((str), "1") == 0)

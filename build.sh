@@ -108,7 +108,12 @@ for i in "${BUILD_ARGS[@]}"; do
             ;;
         sycl)
             COMPILE_SIMULATOR='y'
+<<<<<<< HEAD
 	    COMPILE_MPI='y'
+=======
+            COMPILE_GUI='y'
+    	    COMPILE_MPI='y'
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
             DISABLE_CUDA='y'
             USE_SYCL='y'
             ;;
@@ -125,7 +130,11 @@ DEFAULT_C_FLAGS="-fopenmp -std=gnu99 -fno-strict-aliasing  -Wall -Wno-stringop-t
 if [ -n "$USE_SYCL" ]; then
     C_COMPILER="icx"
     CXX_COMPILER="icpx"
+<<<<<<< HEAD
     DEFAULT_C_FLAGS="-qopenmp -fno-strict-aliasing  -Wall -Wno-unused-function -Wno-unused-result -Wno-switch -Werror=implicit-function-declaration"
+=======
+    DEFAULT_C_FLAGS="-qopenmp -fno-strict-aliasing  -Wall -Wno-unused-function -Wno-unused-result -Wno-switch -Werror=implicit-function-declaration -Wno-incompatible-pointer-types"
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 fi
 
 RUNTIME_OUTPUT_DIRECTORY="$ROOT_DIR/bin"
@@ -241,6 +250,10 @@ if [ -n "$AMGX_FOUND" ]; then
     DYNAMIC_DEPS="$DYNAMIC_DEPS $AMGX_LIBRARIES"
 fi
 
+if [ -n "$USE_SYCL" ]; then
+    DYNAMIC_DEPS="$DYNAMIC_DEPS mkl_sycl_blas mkl_sycl_lapack mkl_sycl_dft mkl_sycl_sparse mkl_sycl_vm mkl_sycl_rng mkl_sycl_stats mkl_sycl_data_fitting mkl_intel_ilp64 mkl_tbb_thread mkl_core sycl"
+fi
+
 
 if [ -n "$COMPILE_GUI" ]; then
     DYNAMIC_DEPS="$DYNAMIC_DEPS OpenGL GLX GLU pthread X11 rt"
@@ -265,7 +278,7 @@ if [ -n "$COMPILE_SIMULATOR" ] || [ -n "$COMPILE_BATCH" ]; then
 fi
 
 #COMPILE THE EXECUTABLES NOW
-EXECUTABLES_LIBRARY_PATH="$CUDA_LIBRARY_PATH $CUDA_MATH_LIBRARY_PATH $LIBRARY_OUTPUT_DIRECTORY" 
+EXECUTABLES_LIBRARY_PATH="$CUDA_LIBRARY_PATH $CUDA_MATH_LIBRARY_PATH $LIBRARY_OUTPUT_DIRECTORY"
 
 if [ -n "$AMGX_FOUND" ]; then
 	EXECUTABLES_LIBRARY_PATH="$EXECUTABLES_LIBRARY_PATH $AMGX_LIBRARY_PATH"
@@ -274,7 +287,11 @@ fi
 
 
 if [ -n "$COMPILE_SIMULATOR" ]; then
+<<<<<<< HEAD
     COMPILE_EXECUTABLE "MonoAlg3D" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "" "$USE_SYCL"
+=======
+    COMPILE_EXECUTABLE "MonoAlg3D" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" ""
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 fi
 
 if [ -n "$COMPILE_MPI" ]; then
@@ -286,11 +303,21 @@ if [ -n "$COMPILE_MPI" ]; then
       HDR_FILES=""
       DYNAMIC_DEPS="$DYNAMIC_DEPS $MPI_LIBRARIES"
       EXTRA_LIB_PATH="$EXTRA_LIB_PATH $MPI_LIBRARY_PATH"
-    
+
+      if [ -n "$USE_SYCL" ]; then
+        DYNAMIC_DEPS="$DYNAMIC_DEPS fabric"
+      fi
+
       if [ -z "$MPI_INCLUDE_PATH" ]; then
+<<<<<<< HEAD
 	 COMPILE_EXECUTABLE "MonoAlg3D_batch" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "$INCLUDE_P" "$USE_SYCL"
       else
 	 COMPILE_EXECUTABLE "MonoAlg3D_batch" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "$INCLUDE_P -I$MPI_INCLUDE_PATH" "$USE_SYCL"
+=======
+	    COMPILE_EXECUTABLE "MonoAlg3D_batch" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "$INCLUDE_P"
+      else
+    	 COMPILE_EXECUTABLE "MonoAlg3D_batch" "$SRC_FILES" "$HDR_FILES" "$STATIC_DEPS" "$DYNAMIC_DEPS" "$EXECUTABLES_LIBRARY_PATH $EXTRA_LIB_PATH" "$INCLUDE_P -I$MPI_INCLUDE_PATH"
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
       fi
 
   fi

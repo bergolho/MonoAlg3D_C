@@ -1,84 +1,36 @@
 //
-// Created by sachetto on 28/11/24.
+// Created by sachetto on 30/04/25.
 //
 
 #ifndef ACCEL_UTILS_H
 #define ACCEL_UTILS_H
 
+#include "../ode_solver/ode_solver.h"
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "../common_types/common_types.h"
 
-#ifdef COMPILE_CUDA
-#include <cublas_v2.h>
-#include <cusparse_v2.h>
-#elif defined(COMPILE_SYCL)
-#include <sycl/sycl.hpp>
-#include <dpct/dpct.hpp>
-#include <dpct/sparse_utils.hpp>
-#include <dpct/blas_utils.hpp>
-#endif
-
-enum copy_direction {
-    HOST_TO_DEVICE,
-    DEVICE_TO_HOST,
-};
-
-enum sparse_index_type {
-    INDEX_INT32,
-    INDEX_INT64,
-};
-
-enum sparse_index_base {
-    INDEX_BASE_ZERO,
-};
-
-enum data_type {
-    REAL_FLOAT,
-    REAL_DOUBLE,
-};
+enum copy_direction { HOST_TO_DEVICE, DEVICE_TO_HOST, DEVICE_TO_DEVICE };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+void *create_sparse_handle(int num_rows, int num_cols, int *d_row, int *d_col, float *d_val, void *v_q);
+void destroy_sparse_handle(void *v_handle, void *v_q);
+char *get_device_info(struct ode_solver *the_ode_solver, bool linear_solver_on_gpu);
 void malloc_device(void **ptr, size_t n);
 void free_device(void *ptr);
 void memcpy_device(void *dest, const void *src, size_t n, enum copy_direction kind);
-void create_sparse_handle(void **handle);
-void create_blas_handle(void **handle);
-void sparse_create_scr(void *mat, int64_t rows, int64_t cols, int64_t nnz,
-                       void* row_ptr,
-                       void* cols_ind_ptr,
-                       void* vals_ptr,
-                       enum sparse_index_type csr_row_offsets_type,
-                       enum sparse_index_type csr_col_ind_type,
-                       enum sparse_index_base idx_base,
-                       enum data_type         value_type);
-
-void create_dense_vector(void** descr, int64_t size, void *values, enum data_type valueType);
-
-#ifdef COMPILE_CUDA
-void sparse_spmv(cusparseHandle_t          handle,
-                                cusparseOperation_t       opA,
-                                const void*               alpha,
-                                cusparseConstSpMatDescr_t matA,
-                                cusparseConstDnVecDescr_t vecX,
-                                const void*               beta,
-                                cusparseDnVecDescr_t      vecY,
-                                enum data_type              computeType,
-                                void*                     externalBuffer);
-#elif defined(COMPILE_SYCL)
-void sparse_spmv(dpct::sparse::descriptor_ptr handle, oneapi::mkl::transpose opA,
-                            const void *alpha, dpct::sparse::sparse_matrix_desc_t matA,
-                            std::shared_ptr<dpct::sparse::dense_vector_desc> vecX, const void *beta,
-                            std::shared_ptr<dpct::sparse::dense_vector_desc> vecY,
-                            enum data_type computeType, void *externalBuffer);
-#endif
-
-void blas_dot(void *handle, int n, real *x, int incx, real *y, int incy, real *result);
-
+void memcpy2d_device(void *dest, size_t pitch_dest, const void *src, size_t pitch_src, size_t w, size_t h, enum copy_direction kind);
+void *get_sycl_queue();
+void mkl_dot(int n, float *x, int incx, float *y, int incy, float *result, void *v_q);
+void mkl_scal(int n, float alpha, float *x, int incx, void *v_q);
+void mkl_nrm2(int n, float *x, int incx, float *res, void *v_q);
+void mkl_axpy(int n, float alpha, float *x, int incx, float *y, int incy, void *v_q);
+void mkl_spmv(void *v_handle, float *in_vec, float *out_vec, void *v_q);
+void mkl_copy(int n, float *x, int incx, float *y, int incy, void *v_q);
 #ifdef __cplusplus
 }
 #endif
 
-#endif //ACCEL_UTILS_H
+#endif // ACCEL_UTILS_H

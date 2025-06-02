@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 GPU_UTILS_SOURCE_FILES="gpu_utils.c"
 GPU_UTILS_HEADER_FILES="gpu_utils.h"
 SYCL_UTILS_SOURCE_FILES=""
@@ -17,3 +18,20 @@ if [ -n "$SYCL_FOUND" ]; then
     SYCL_UTILS_SOURCE_FILES="$SYCL_UTILS_SOURCE_FILES sycl_utils.cpp"
     COMPILE_SHARED_LIB "gpu_utils" "$SYCL_UTILS_SOURCE_FILES" "$SYCL_UTILS_HEADER_FILES" "" "$SYCL_UTILS_DYNAMIC_LIBS" "$SYCL_UTILS_EXTRA_LIB_PATH" "" "$CUDA_FOUND" "$SYCL_FOUND"
 fi
+=======
+GPU_UTILS_SOURCE_FILES="accel_utils.cpp"
+GPU_UTILS_HEADER_FILES="accel_utils.h"
+EXTRA_C_FLAGS=""
+
+    if [ -n "$USE_SYCL" ]; then
+      EXTRA_C_FLAGS="-fsycl -fsycl-targets=nvptx64-nvidia-cuda,x86_64,spir64"
+      IS_SYCL="1"
+    elif [ -n "$CUDA_FOUND" ]; then
+        GPU_UTILS_EXTRA_LIB_PATH=$CUDA_LIBRARY_PATH
+        GPU_UTILS_DYNAMIC_LIBS="c cudart"
+        GPU_UTILS_SOURCE_FILES="$GPU_UTILS_SOURCE_FILES gpu_utils.c gpu_utils.cu"
+    fi
+
+COMPILE_SHARED_LIB "gpu_utils" "$GPU_UTILS_SOURCE_FILES" "$GPU_UTILS_HEADER_FILES" "" "$GPU_UTILS_DYNAMIC_LIBS" "$GPU_UTILS_EXTRA_LIB_PATH" "$EXTRA_C_FLAGS" "$CUDA_FOUND" "$IS_SYCL"
+
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf

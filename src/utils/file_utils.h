@@ -30,7 +30,11 @@ struct path_information {
 extern "C" {
 #endif
 
+<<<<<<< HEAD
 float* read_timesteps_from_case_file(sds case_file_path);
+=======
+float *read_timesteps_from_case_file(sds case_file_path);
+>>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 char *get_current_directory();
 const char *get_filename_ext(const char *filename);
 int cp_file(const char *to, const char *from);
@@ -56,7 +60,11 @@ bool check_simulation_completed(char *simulation_dir);
 real_cpu **read_octave_mat_file_to_array(FILE *matrix_file, uint64_t *num_lines, uint64_t *nnz);
 real_cpu *read_octave_vector_file_to_array(FILE *vec_file, uint64_t *num_lines);
 FILE *open_file_or_exit(char *filename, char *mode);
-char* get_timestamped_dir_name(char* dir_name);
+char *get_timestamped_dir_name(char *dir_name);
+
+#ifdef __cplusplus
+}
+#endif
 
 #ifdef __cplusplus
 }

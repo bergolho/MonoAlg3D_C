@@ -1,221 +1,134 @@
 //
-// Created by sachetto on 28/11/24.
+// Created by sachetto on 30/04/25.
 //
 
 #include "accel_utils.h"
+#ifdef COMPILE_CUDA
 #include "gpu_utils.h"
+#endif
 
-extern "C" void malloc_device(void **ptr, size_t n) {
+#ifdef COMPILE_SYCL
+#include <dpct/dpct.hpp>
+#include <sycl/sycl.hpp>
+#endif
+
+#include "../ode_solver/ode_solver.h"
+
+char *get_device_info(struct ode_solver *the_ode_solver, bool linear_solver_on_gpu) {
+
+    assert(the_ode_solver);
+    char *device_info = (char *)calloc(sizeof(char), 1024);
+
+#ifdef COMPILE_CUDA
+    int device_count;
+    int device = the_ode_solver->gpu_id;
+
+    check_cuda_error(cudaGetDeviceCount(&device_count));
+
+    if(device_count > 0) {
+        if(device >= device_count) {
+            sprintf(device_info, "Invalid gpu_id %d. Using gpu_id 0!\n", device);
+            the_ode_solver->gpu_id = device = 0;
+        }
+
+        struct cudaDeviceProp prop;
+        check_cuda_error(cudaGetDeviceProperties(&prop, the_ode_solver->gpu_id));
+
+        if(the_ode_solver->gpu && linear_solver_on_gpu) {
+            sprintf(device_info, "%d devices available, running both ODE and linear system solvers on GPU (device %d -> %s)", device_count, device, prop.name);
+        } else if(the_ode_solver->gpu) {
+            sprintf(device_info, "%d devices available, running only the ODE solver on GPU (device %d -> %s)", device_count, device, prop.name);
+        } else {
+            sprintf(device_info, "%d devices available, running only the linear system solver on GPU (device %d -> %s)", device_count, device, prop.name);
+        }
+
+        check_cuda_error(cudaSetDevice(device));
+    }
+#elif defined(COMPILE_SYCL)
+    dpct::device_ext &dev_ct1 = dpct::get_current_device();
+    sycl::queue &q_ct1 = dev_ct1.default_queue();
+
+    if(the_ode_solver->gpu && linear_solver_on_gpu) {
+        sprintf(device_info, "Running both ODE and linear system solvers on GPU (%s)", q_ct1.get_device().get_info<sycl::info::device::name>().c_str());
+    } else if(the_ode_solver->gpu) {
+        sprintf(device_info, "Running only the ODE solver on GPU (%s)", q_ct1.get_device().get_info<sycl::info::device::name>().c_str());
+    } else {
+        sprintf(device_info, "Running only the linear system solver on GPU (%s)", q_ct1.get_device().get_info<sycl::info::device::name>().c_str());
+    }
+#endif
+    return device_info;
+}
+
+void malloc_device(void **ptr, size_t n) {
 
 #ifdef COMPILE_CUDA
     check_cuda_error(cudaMalloc(ptr, n));
 #elif defined(COMPILE_SYCL)
-    DPCT_CHECK_ERROR(*ptr = sycl::malloc_device(n, dpct::get_in_order_queue()));
-#endif
+    dpct::device_ext &dev = dpct::get_current_device();
+    sycl::queue &q = dev.default_queue();
 
+    DPCT_CHECK_ERROR(*ptr = sycl::malloc_device(n, q));
+#endif
 }
 
-extern "C" void free_device(void *ptr) {
+void free_device(void *ptr) {
 #ifdef COMPILE_CUDA
     check_cuda_error(cudaFree(ptr));
 #elif defined(COMPILE_SYCL)
-    DPCT_CHECK_ERROR(dpct::dpct_free(ptr, dpct::get_in_order_queue()));
+    dpct::device_ext &dev = dpct::get_current_device();
+    sycl::queue &q = dev.default_queue();
+    DPCT_CHECK_ERROR(dpct::dpct_free(ptr, q));
 #endif
 }
 
-extern "C" void memcpy_device(void *dest, const void *src, size_t n, enum copy_direction kind) {
+void memcpy_device(void *dest, const void *src, size_t n, enum copy_direction kind) {
 
-    if(kind == HOST_TO_DEVICE)  {
-    #ifdef COMPILE_CUDA
-        check_cuda_error(cudaMemcpy(dest, src, n, cudaMemcpyHostToDevice));
-    #elif defined(COMPILE_SYCL)
-        sycl::device dev_ct1;
-        sycl::queue q_ct1(dev_ct1, sycl::property_list{sycl::property::queue::in_order()});
-        q_ct1.memcpy(dest, src, n).wait();
-    #endif
+#ifdef COMPILE_CUDA
+    enum cudaMemcpyKind dir;
+    if(kind == HOST_TO_DEVICE) {
+        dir = cudaMemcpyHostToDevice;
     } else if(kind == DEVICE_TO_HOST) {
-    #ifdef COMPILE_CUDA
-        check_cuda_error(cudaMemcpy(dest, src, n, cudaMemcpyDeviceToHost));
-    #elif defined(COMPILE_SYCL)
-        dpct::device_ext &dev_ct1 = dpct::get_current_device();
-        sycl::queue &q_ct1 = dev_ct1.default_queue();
-        q_ct1.memcpy(dest, src, n).wait();
-    #endif
+        dir = cudaMemcpyDeviceToHost;
+    } else if(kind == DEVICE_TO_DEVICE) {
+        dir = cudaMemcpyDeviceToDevice;
+    } else {
+        fprintf(stderr, "Invalid copy direction\n");
+        exit(EXIT_FAILURE);
     }
-}
-
-extern "C" void create_sparse_handle(void **handle) {
-#ifdef COMPILE_CUDA
-    check_cublas_error(cusparseCreate((cusparseHandle_t *) *handle));
+    check_cuda_error(cudaMemcpy(dest, src, n, dir));
 #elif defined(COMPILE_SYCL)
-    DPCT_CHECK_ERROR(*handle = new dpct::sparse::descriptor());
+    (void)kind;
+    dpct::device_ext &dev = dpct::get_current_device();
+    sycl::queue &q = dev.default_queue();
+    q.memcpy(dest, src, n).wait();
 #endif
 }
 
-extern "C" void create_blas_handle(void **handle) {
-#ifdef COMPILE_CUDA
-    check_cublas_error(cublasCreate((cublasHandle_t *) *handle));
-#elif defined(COMPILE_SYCL)
-    DPCT_CHECK_ERROR(*handle = new dpct::blas::descriptor());
-#endif
-}
+void memcpy2d_device(void *dest, size_t pitch_dest, const void *src, size_t pitch_src, size_t w, size_t h, enum copy_direction kind) {
 
 #ifdef COMPILE_CUDA
-static inline cusparseIndexType_t get_index_type(enum sparse_index_type type) {
-    switch(type) {
-    case INDEX_INT32:
-        return CUSPARSE_INDEX_32I;
-    case INDEX_INT64:
-        return CUSPARSE_INDEX_64I;
-    }
-    return CUSPARSE_INDEX_64I;
-}
-#elif defined(COMPILE_SYCL)
-static inline dpct::library_data_t get_index_type(enum sparse_index_type type) {
-    switch(type) {
-    case INDEX_INT32:
-        return dpct::library_data_t::real_int32;
-    case INDEX_INT64:
-        return dpct::library_data_t::real_int64;
-    }
-    return dpct::library_data_t::real_int64;
-}
-#endif
-
-#ifdef COMPILE_CUDA
-static inline cudaDataType get_data_type(enum data_type type) {
-    switch(type) {
-    case REAL_FLOAT:
-        return CUDA_R_32F;
-    case REAL_DOUBLE:
-        return CUDA_R_64F;
+    enum cudaMemcpyKind dir;
+    if(kind == HOST_TO_DEVICE) {
+        dir = cudaMemcpyHostToDevice;
+    } else if(kind == DEVICE_TO_HOST) {
+        dir = cudaMemcpyDeviceToHost;
+    } else if(kind == DEVICE_TO_DEVICE) {
+        dir = cudaMemcpyDeviceToDevice;
+    } else {
+        fprintf(stderr, "Invalid copy direction\n");
+        exit(EXIT_FAILURE);
     }
 
-    return CUDA_R_64F;
-
-}
+    check_cuda_error(cudaMemcpy2D(dest, pitch_dest, src, pitch_src, w, h, dir));
 #elif defined(COMPILE_SYCL)
-static inline dpct::library_data_t get_data_type(enum data_type type) {
-    switch(type) {
-    case REAL_FLOAT:
-        return dpct::library_data_t::real_float;
-    case REAL_DOUBLE:
-        return dpct::library_data_t::real_double;
-    }
+    (void)pitch_dest;
+    (void)pitch_src;
+    (void)w;
+    (void)h;
+    (void)kind;
 
-    return dpct::library_data_t::real_double;
-}
-#endif
-
-#ifdef COMPILE_CUDA
-static inline cusparseIndexBase_t get_index_base_type(enum sparse_index_base type) {
-    switch(type) {
-    case INDEX_BASE_ZERO:
-        return CUSPARSE_INDEX_BASE_ZERO;
-    }
-
-    return CUSPARSE_INDEX_BASE_ZERO;
-}
-#elif defined(COMPILE_SYCL)
-static inline oneapi::mkl::index_base  get_index_base_type(enum sparse_index_base type) {
-    switch(type) {
-    case INDEX_BASE_ZERO:
-        return oneapi::mkl::index_base::zero;
-    }
-}
-#endif
-
-extern "C" void sparse_create_scr(void *mat, int64_t rows, int64_t cols, int64_t nnz,
-                  void* row_ptr,
-                  void* cols_ind_ptr,
-                  void* vals_ptr,
-                  enum sparse_index_type csr_row_offsets_type,
-                  enum sparse_index_type   csr_col_ind_type,
-                  enum sparse_index_base   idx_base,
-                  enum data_type          value_type) {
-
-
-#ifdef COMPILE_CUDA
-    cusparseIndexType_t row_index_type = get_index_type(csr_row_offsets_type);
-    cusparseIndexType_t col_index_type = get_index_type(csr_col_ind_type);
-    cudaDataType l_value_type = get_data_type(value_type);
-    cusparseIndexBase_t l_idx_base = get_index_base_type(idx_base);
-    check_cuda_error(cusparseCreateCsr((cusparseSpMatDescr_t*) mat, rows, cols, nnz, row_ptr, cols_ind_ptr,
-                                       vals_ptr, row_index_type, col_index_type, l_idx_base, l_value_type));
-#elif defined(COMPILE_SYCL)
-    dpct::library_data_t row_index_type = get_index_type(csr_row_offsets_type);
-    dpct::library_data_t col_index_type = get_index_type(csr_col_ind_type);
-    dpct::library_data_t l_value_type = get_data_type(value_type);
-    oneapi::mkl::index_base l_idx_base = get_index_base_type(idx_base);
-    DPCT_CHECK_ERROR(mat = new dpct::sparse::sparse_matrix_desc(rows, cols, nnz, row_ptr, cols_ind_ptr, vals_ptr, row_index_type,
-                                col_index_type, l_idx_base, l_value_type, dpct::sparse::matrix_format::csr));
+    dpct::device_ext &dev = dpct::get_current_device();
+    sycl::queue &q = dev.default_queue();
+    q.memcpy(dest, src, w * h).wait();
 #endif
 }
-
-extern "C" void create_dense_vector(void** descr, int64_t size, void *values, enum data_type valueType) {
-#ifdef COMPILE_CUDA
-    cudaDataType l_value_type = get_data_type(valueType);
-    check_cuda_error(cusparseCreateDnVec((cusparseDnVecDescr_t *) descr, size, values, l_value_type));
-#elif defined(COMPILE_SYCL)
-    dpct::library_data_t l_value_type = get_data_type(valueType);
-    DPCT_CHECK_ERROR(*descr = new dpct::sparse::dense_vector_desc(size, values, l_value_type));
-#endif
-}
-
-#ifdef COMPILE_CUDA
-extern "C" void sparse_spmv(cusparseHandle_t          handle,
-                                          cusparseOperation_t       opA,
-                                          const void*               alpha,
-                                          cusparseConstSpMatDescr_t matA,
-                                          cusparseConstDnVecDescr_t vecX,
-                                          const void*               beta,
-                                          cusparseDnVecDescr_t      vecY,
-                                          enum data_type            valueType,
-                                          void*                     externalBuffer)
-#elif defined(COMPILE_SYCL)
-extern "C" void sparse_spmv(dpct::sparse::descriptor_ptr handle, oneapi::mkl::transpose opA,
-                                          const void *alpha, dpct::sparse::sparse_matrix_desc_t matA,
-                                          std::shared_ptr<dpct::sparse::dense_vector_desc> vecX, const void *beta,
-                                          std::shared_ptr<dpct::sparse::dense_vector_desc> vecY,
-                                          enum data_type valueType, void *externalBuffer)
-#endif
-{
-#ifdef COMPILE_CUDA
-#if CUSPARSE_VER_MAJOR >= 12
-#define CUSPARSE_ALG CUSPARSE_SPMV_ALG_DEFAULT
-#elif CUSPARSE_VER_MAJOR == 11
-#define CUSPARSE_ALG CUSPARSE_MV_ALG_DEFAULT
-#endif
-    cudaDataType computeType = get_data_type(valueType);
-    check_cublas_error(cusparseSpMV(handle, opA, alpha, matA, vecX, beta, vecY, computeType, CUSPARSE_ALG, externalBuffer));
-#elif defined(COMPILE_SYCL)
-    (void) externalBuffer;
-    dpct::library_data_t computeType = get_data_type(valueType);
-    DPCT_CHECK_ERROR(dpct::sparse::spmv((handle)->get_queue(), opA, alpha, matA, vecX, beta, vecY, computeType));
-
-#endif
-}
-
-extern "C" void blas_dot(void *handle, int n, real *x, int incx, real *y, int incy, real *result) {
-#ifdef COMPILE_CUDA
-#ifdef CELL_MODEL_REAL_DOUBLE
-    check_cublas_error(cublasDdot((cublasHandle_t ) handle, n, x, incx, y, incy, result));
-#else
-    check_cublas_error(cublasDdot((cublasHandle_t ) handle, n, x, incx, y, incy, result));
-#endif
-#elif defined(COMPILE_SYCL)
-    sycl::queue queue = ((dpct::blas::descriptor_ptr) handle)->get_queue();
-    real *res = sycl::malloc_shared<real>(1, queue);
-    oneapi::mkl::blas::column_major::dot(
-        queue,
-        n,
-        x, 1,
-        y, 1,
-        res
-    );
-    queue.wait();
-    *result = *res;
-#endif
-}
-
-#endif

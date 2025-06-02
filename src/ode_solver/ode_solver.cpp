@@ -8,10 +8,12 @@
 #include <dlfcn.h>
 #include <string.h>
 
-#ifdef COMPILE_CUDA
-#include "../gpu_utils/gpu_utils.h"
-#elif defined(COMPILE_SYCL)
-#include "../gpu_utils/sycl_utils.h"
+#if defined(COMPILE_CUDA) || defined(COMPILE_SYCL)
+#define COMPILE_GPU
+#endif
+
+#ifdef COMPILE_GPU
+#include "../gpu_utils/accel_utils.h"
 #endif
 
 #include "../3dparty/sds/sds.h"
@@ -49,8 +51,8 @@ struct ode_solver *new_ode_solver() {
 void free_ode_solver(struct ode_solver *solver) {
     if(solver->sv) {
         if(solver->gpu) {
-#ifdef COMPILE_CUDA
-            cudaFree(solver->sv);
+#ifdef COMPILE_GPU
+            free_device(solver->sv);
 #endif
         } else {
 #ifdef COMPILE_SYCL            
@@ -93,7 +95,7 @@ void init_ode_solver_with_cell_model(struct ode_solver *solver) {
         exit(1);
     }
 
-    solver->get_cell_model_data = (get_cell_model_data_fn*)dlsym(solver->handle, "init_cell_model_data");
+    solver->get_cell_model_data = (get_cell_model_data_fn *)dlsym(solver->handle, "init_cell_model_data");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         fprintf(stderr, "init_cell_model_data function not found in the provided model library\n");
@@ -103,29 +105,29 @@ void init_ode_solver_with_cell_model(struct ode_solver *solver) {
         }
     }
 
-    solver->set_ode_initial_conditions_cpu = (set_ode_initial_conditions_cpu_fn*)dlsym(solver->handle, "set_model_initial_conditions_cpu");
+    solver->set_ode_initial_conditions_cpu = (set_ode_initial_conditions_cpu_fn *)dlsym(solver->handle, "set_model_initial_conditions_cpu");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         fprintf(stderr, "set_model_initial_conditions function not found in the provided model library\n");
         exit(1);
     }
 
-    solver->solve_model_ode_cpu = (solve_model_ode_cpu_fn*)dlsym(solver->handle, "solve_model_odes_cpu");
+    solver->solve_model_ode_cpu = (solve_model_ode_cpu_fn *)dlsym(solver->handle, "solve_model_odes_cpu");
     if((error = dlerror()) != NULL) {
         fprintf(stderr, "%s\n", error);
         fprintf(stderr, "solve_model_odes_cpu function not found in the provided model library\n");
         exit(1);
     }
 
-#ifdef COMPILE_CUDA
-    solver->set_ode_initial_conditions_gpu = (set_ode_initial_conditions_gpu_fn*)dlsym(solver->handle, "set_model_initial_conditions_gpu");
+#ifdef COMPILE_GPU
+    solver->set_ode_initial_conditions_gpu = (set_ode_initial_conditions_gpu_fn *)dlsym(solver->handle, "set_model_initial_conditions_gpu");
     if((error = dlerror()) != NULL) {
         fputs(error, stderr);
         fprintf(stderr, "set_model_initial_conditions_gpu function not found in the provided model library\n");
         exit(1);
     }
 
-    solver->solve_model_ode_gpu = (solve_model_ode_gpu_fn*)dlsym(solver->handle, "solve_model_odes_gpu");
+    solver->solve_model_ode_gpu = (solve_model_ode_gpu_fn *)dlsym(solver->handle, "solve_model_odes_gpu");
     if((error = dlerror()) != NULL) {
         fputs(error, stderr);
         fprintf(stderr, "\nsolve_model_odes_gpu function not found in the provided model library\n");
@@ -157,11 +159,8 @@ void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struc
 
     (*(solver->get_cell_model_data))(&(solver->model_data), get_initial_v, get_neq);
 
-    if (!solver->use_sycl) {
-        // CUDA/OpenMP code
-        if(solver->gpu) {
-    #ifdef COMPILE_CUDA
-            set_ode_initial_conditions_gpu_fn *soicg_fn_pt = solver->set_ode_initial_conditions_gpu;
+    if(solver->gpu) {
+#ifdef COMPILE_GPU
 
             if(!soicg_fn_pt) {
                 fprintf(stderr,
@@ -204,7 +203,18 @@ void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struc
     #ifdef COMPILE_SYCL
         set_ode_initial_conditions_sycl_fn *soics_fn_pt = solver->set_ode_initial_conditions_sycl;
 
-        if(!soics_fn_pt) {
+        if(solver->sv != NULL) {
+            free_device(solver->sv);
+            solver->sv = NULL;
+        }
+
+        solver->pitch = soicg_fn_pt(solver, ode_extra_config);
+#endif
+    } else {
+
+        set_ode_initial_conditions_cpu_fn *soicc_fn_pt = solver->set_ode_initial_conditions_cpu;
+
+        if(!soicc_fn_pt) {
             fprintf(stderr,
                     "The ode solver was set to use SYCL, \n "
                     "but no function called set_model_initial_conditions_sycl "
@@ -280,22 +290,13 @@ void solve_all_volumes_odes(struct ode_solver *the_ode_solver, real_cpu cur_time
         }
     }
 
-    if (!the_ode_solver->use_sycl) {
-        // CUDA/OpenMP code
-        if(the_ode_solver->gpu) {
-            #ifdef COMPILE_CUDA
-                solve_model_ode_gpu_fn *solve_odes_fn = the_ode_solver->solve_model_ode_gpu;
-                solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
-            #endif
-            } else {
-                solve_model_ode_cpu_fn *solve_odes_fn = the_ode_solver->solve_model_ode_cpu;
-                solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
-            }
-        }
-    else {
-        // SYCL code
-    #ifdef COMPILE_SYCL
-        solve_model_ode_sycl_fn *solve_odes_fn = the_ode_solver->solve_model_ode_sycl;
+    if(the_ode_solver->gpu) {
+#ifdef COMPILE_GPU
+        solve_model_ode_gpu_fn *solve_odes_fn = the_ode_solver->solve_model_ode_gpu;
+        solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
+#endif
+    } else {
+        solve_model_ode_cpu_fn *solve_odes_fn = the_ode_solver->solve_model_ode_cpu;
         solve_odes_fn(the_ode_solver, ode_extra_config, cur_time, merged_stims);
     #endif
     }
@@ -323,7 +324,7 @@ void update_state_vectors_after_refinement(struct ode_solver *ode_solver, const 
     const size_t max_index = 8;
 
     if(ode_solver->gpu) {
-#ifdef COMPILE_CUDA
+#ifdef COMPILE_GPU
         size_t pitch_h = ode_solver->pitch;
 
         for(i = 0; i < num_refined_cells; i++) {
@@ -336,7 +337,7 @@ void update_state_vectors_after_refinement(struct ode_solver *ode_solver, const 
             for(int j = 1; j < max_index; j++) {
                 index = refined_this_step[index_id + j];
                 sv_dst = &sv[index];
-                check_cuda_error(cudaMemcpy2D(sv_dst, pitch_h, sv_src, pitch_h, sizeof(real), (size_t)neq, cudaMemcpyDeviceToDevice));
+                memcpy2d_device(sv_dst, pitch_h, sv_src, pitch_h, sizeof(real), (size_t)neq, DEVICE_TO_DEVICE);
             }
         }
 #endif
