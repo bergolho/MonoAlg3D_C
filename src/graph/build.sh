@@ -1,3 +1,3 @@
-GRAPH_SOURCE_FILES="graph.cpp pqueue.cpp"
+GRAPH_SOURCE_FILES="graph.c pqueue.c"
 GRAPH_HEADER_FILES="graph.h pqueue.h"
 COMPILE_STATIC_LIB "graph" "$GRAPH_SOURCE_FILES" "$GRAPH_HEADER_FILES"

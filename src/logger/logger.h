@@ -30,17 +30,11 @@ struct logt {
 extern "C" {
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void set_no_stdout(bool val);
 void open_logfile(const char *path);
 void close_logfile();
 void log_to_stdout_and_file(const char *prefix, char const *fmt, ...);
 void log_to_stderr_and_file(bool exit, const char *prefix, char const *fmt, ...);
-#ifdef __cplusplus
-}
-#endif
 
 #ifdef __cplusplus
 }

@@ -20,15 +20,7 @@ struct postprocess_function {
 
 typedef struct postprocess_function ** postprocess_list;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct postprocess_function *new_postprocess_function();
 void init_postprocess_function(struct postprocess_function *function, const char *f_name);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif //POSTPROCESSOR_CONFIG_H

@@ -483,8 +483,8 @@ SET_EXTRA_DATA(set_extra_data_mixed_torord_fkatp_epi_mid_endo) {
     real side_length_mid = side_length_endo + side_length*0.25;
     real side_length_epi = side_length_mid + side_length*0.3;
 
-    struct extra_data_for_torord_gksgkrtjca_twave *extra_data = NULL;
-    extra_data = set_common_torord_gksgkrtjca_twave_data(config, num_active_cells);
+    struct extra_data_for_torord *extra_data = NULL;
+    extra_data = set_common_torord_data(config, num_active_cells);
 
     OMP(parallel for)
     for (int i = 0; i < num_active_cells; i++) {
@@ -502,7 +502,7 @@ SET_EXTRA_DATA(set_extra_data_mixed_torord_fkatp_epi_mid_endo) {
             extra_data->transmurality[i] = 2.0;
     }
 
-    SET_EXTRA_DATA_SIZE(sizeof(struct extra_data_for_torord_gksgkrtjca_twave));
+    SET_EXTRA_DATA_SIZE(sizeof(struct extra_data_for_torord));
 
     return (void*)extra_data;
 

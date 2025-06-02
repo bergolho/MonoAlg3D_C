@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #define NEQ 2
-#define INITIAL_V (0.0)
+#define INITIAL_V (0.00000820413566106744)
 
 #ifdef __CUDACC__
 
@@ -19,12 +19,6 @@ __global__ void solve_gpu(real dt, real *sv, real* stim_currents,
                           int num_steps);
 
 inline __device__ void RHS_gpu(real *sv_, real *rDY_, real stim_current, int threadID_);
-
-#endif
-
-#ifdef COMPILE_SYCL
-
-inline void RHS_sycl (real *Y, real stim_current, real *dY, int sv_id, int num_cells);
 
 #endif
 

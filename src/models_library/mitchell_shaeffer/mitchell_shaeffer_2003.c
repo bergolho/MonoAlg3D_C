@@ -21,7 +21,7 @@ SET_ODE_INITIAL_CONDITIONS_CPU(set_model_initial_conditions_cpu)
     for(uint32_t i = 0; i < num_cells; i++) {
         real *sv = &solver->sv[i * NEQ];
 
-        sv[0] = 0.0; // Vm millivolt
+        sv[0] = 0.00000820413566106744f; // Vm millivolt
         sv[1] = 0.8789655121804799f;     // h dimensionless
     }
 

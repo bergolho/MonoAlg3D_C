@@ -31,8 +31,4 @@
     #include "set_single_precision.h"
 #endif
 
-#ifdef COMPILE_SYCL
-    #pragma message "Using SYCL version of the model"
-#endif
-
 #endif // MONOALG3D_C_MODEL_COMMON_H

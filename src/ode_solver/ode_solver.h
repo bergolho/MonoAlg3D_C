@@ -37,7 +37,6 @@ typedef GET_CELL_MODEL_DATA(get_cell_model_data_fn);
 #define SOLVE_MODEL_ODES(name) void name(struct ode_solver *ode_solver, struct string_hash_entry *ode_extra_config, real current_t, real *stim_currents)
 typedef SOLVE_MODEL_ODES(solve_model_ode_gpu_fn);
 typedef SOLVE_MODEL_ODES(solve_model_ode_cpu_fn);
-typedef SOLVE_MODEL_ODES(solve_model_ode_sycl_fn);
 
 // CPU FUNCTIONS
 #define SET_ODE_INITIAL_CONDITIONS_CPU(name) void name(struct ode_solver *solver, struct string_hash_entry *ode_extra_config)
@@ -46,10 +45,6 @@ typedef SET_ODE_INITIAL_CONDITIONS_CPU(set_ode_initial_conditions_cpu_fn);
 // GPU FUNCTIONS
 #define SET_ODE_INITIAL_CONDITIONS_GPU(name) size_t name(struct ode_solver *solver, struct string_hash_entry *ode_extra_config)
 typedef SET_ODE_INITIAL_CONDITIONS_GPU(set_ode_initial_conditions_gpu_fn);
-
-// SYCL FUNCTIONS
-#define SET_ODE_INITIAL_CONDITIONS_SYCL(name)  void name (struct ode_solver *solver, struct string_hash_entry *ode_extra_config)
-typedef SET_ODE_INITIAL_CONDITIONS_SYCL (set_ode_initial_conditions_sycl_fn);
 
 struct ode_solver {
 
@@ -70,8 +65,6 @@ struct ode_solver {
     bool gpu;
     int gpu_id;
 
-    bool use_sycl;
-
     uint32_t original_num_cells;
     real *sv;
     void *ode_extra_data;
@@ -86,7 +79,6 @@ struct ode_solver {
     get_cell_model_data_fn *get_cell_model_data;
     set_ode_initial_conditions_cpu_fn *set_ode_initial_conditions_cpu;
     set_ode_initial_conditions_gpu_fn *set_ode_initial_conditions_gpu;
-    set_ode_initial_conditions_sycl_fn *set_ode_initial_conditions_sycl;
     solve_model_ode_cpu_fn *solve_model_ode_cpu;
     solve_model_ode_gpu_fn *solve_model_ode_gpu;
     // update_gpu_fn_pt update_gpu_fn;
@@ -95,6 +87,7 @@ struct ode_solver {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 void set_ode_initial_conditions_for_all_volumes(struct ode_solver *solver, struct string_hash_entry *ode_extra_config);
 
 void update_state_vectors_after_refinement(struct ode_solver *ode_solver, const uint32_t *refined_this_step);

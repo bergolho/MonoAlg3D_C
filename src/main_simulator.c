@@ -170,7 +170,6 @@ int main(int argc, char **argv) {
     }
 #endif
 
-
 #ifndef COMPILE_GUI
     if(options->show_gui) {
         log_warn("MonoAlg3D was not compiled with GUI support. Using CLI!!\n");

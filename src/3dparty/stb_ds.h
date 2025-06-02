@@ -566,25 +566,6 @@ enum { STBDS_SH_NONE, STBDS_SH_STRDUP, STBDS_SH_ARENA };
 #ifdef __cplusplus
 //// in C we use implicit assignment from these void*-returning functions to T*.
 //// in C++ these templates make the same code work
-<<<<<<< HEAD
-template<class T> static T * stbds_arrgrowf_wrapper(T *a, size_t elemsize, size_t addlen, size_t min_cap) {
-  return (T*)stbds_arrgrowf((void *)a, elemsize, addlen, min_cap);
-}
-template<class T> static T * stbds_hmget_key_wrapper(T *a, size_t elemsize, void *key, size_t keysize, int mode) {
-  return (T*)stbds_hmget_key((void*)a, elemsize, key, keysize, mode);
-}
-template<class T> static T * stbds_hmput_default_wrapper(T *a, size_t elemsize) {
-  return (T*)stbds_hmput_default((void *)a, elemsize);
-}
-template<class T> static T * stbds_hmput_key_wrapper(T *a, size_t elemsize, void *key, size_t keysize, int mode) {
-  return (T*)stbds_hmput_key((void*)a, elemsize, key, keysize, mode);
-}
-template<class T> static T * stbds_hmdel_key_wrapper(T *a, size_t elemsize, void *key, size_t keysize, size_t keyoffset, int mode){
-  return (T*)stbds_hmdel_key((void*)a, elemsize, key, keysize, keyoffset, mode);
-}
-template<class T> static T * stbds_shmode_func_wrapper(T *, size_t elemsize, int mode) {
-  return (T*)stbds_shmode_func(elemsize, mode);
-=======
 template <class T> static T *stbds_arrgrowf_wrapper(T *a, size_t elemsize, size_t addlen, size_t min_cap) {
     return (T *)stbds_arrgrowf((void *)a, elemsize, addlen, min_cap);
 }
@@ -602,7 +583,6 @@ template <class T> static T *stbds_hmdel_key_wrapper(T *a, size_t elemsize, void
 }
 template <class T> static T *stbds_shmode_func_wrapper(T *, size_t elemsize, int mode) {
     return (T *)stbds_shmode_func(elemsize, mode);
->>>>>>> 89b4c2d38ee29f48ec95a92ecece5c83b3c040bf
 }
 #else
 #define stbds_arrgrowf_wrapper stbds_arrgrowf

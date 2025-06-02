@@ -166,11 +166,14 @@ scripts/tuneCV/build/*
 scripts/tuneCV/bin/*
 scripts/tuneCV/configs/*
 scripts/tuneCV/outputs/*
+scripts/tuneCV_Hector/
 private_models/
 src/*/custom_functions.c
 src/*/custom_functions_BACKUP.c
 src/*/custom_functions.h
-
+src/domains_library/master_branch/
+src/matrix_assembly_library/master_branch/
+src/extra_data_library/master_branch/
 bsbash/find_functions_with_mpi.sh
 
 .cache/
@@ -179,6 +182,7 @@ bsbash/find_functions_with_mpi.sh
 .idea/modules.xml
 example_configs/atrial_mesh_start_500um_27n_LA_RA.ini
 example_configs/scv_mesh_small.ini
+local_stims/
 local_meshes/
 local_networks/
 sync.sh
@@ -201,3 +205,4 @@ VV_49900.dat
 /ecg.txt
 __pycache__/
 backup/
+src_21-04-25/

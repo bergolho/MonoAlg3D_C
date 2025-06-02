@@ -59,10 +59,6 @@ struct graph {
     bool calc_retropropagation;
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct node* new_node (uint32_t id, const real_cpu pos[], const real_cpu sigma);
 struct edge* new_edge (uint32_t id, real_cpu w, struct node *dest);
 struct graph* new_graph ();
@@ -82,10 +78,6 @@ real_cpu calc_norm (const real_cpu x1, const real_cpu y1, const real_cpu z1,\
 double* dijkstra (struct graph *g, const uint32_t src_id);
 
 bool is_terminal (const struct node *n);
-
-#ifdef __cplusplus
-}
-#endif
 
 // --------------------------------------------------------------------------------
 // PQUEUE library
