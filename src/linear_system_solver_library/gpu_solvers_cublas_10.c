@@ -28,6 +28,10 @@ struct gpu_persistent_data {
     cusparseSolveAnalysisInfo_t info_u;
     cusparseMatDescr_t descrL;
     cusparseMatDescr_t descrU;
+
+    /* Double-precision BiCGSTAB storage */
+    double *d_val_d, *d_x_d;
+    double *d_r_d, *d_rw_d, *d_p_d, *d_v_d, *d_t_d, *d_Ax_d;
 };
 
  INIT_LINEAR_SYSTEM(init_gpu_conjugate_gradient) {
@@ -330,10 +334,18 @@ INIT_LINEAR_SYSTEM(init_gpu_biconjugate_gradient) {
     cusparseSetMatType(persistent_data->descr, CUSPARSE_MATRIX_TYPE_GENERAL);
     cusparseSetMatIndexBase(persistent_data->descr, CUSPARSE_INDEX_BASE_ZERO);
 
-    grid_to_csr(the_grid, &val, &I, &J, false);
+    uint32_t num_active_cells;
+    struct cell_node **active_cells = NULL;
 
-    uint32_t num_active_cells = the_grid->num_active_cells;
-    struct cell_node **active_cells = the_grid->active_cells;
+    if (is_purkinje) {
+        grid_to_csr(the_grid, &val, &I, &J, true);
+        num_active_cells = the_grid->purkinje->num_active_purkinje_cells;
+        active_cells = the_grid->purkinje->purkinje_cells;
+    } else {
+        grid_to_csr(the_grid, &val, &I, &J, false);
+        num_active_cells = the_grid->num_active_cells;
+        active_cells = the_grid->active_cells;
+    }
 
     int nz = arrlen(val);
     int N = num_active_cells;
@@ -343,24 +355,40 @@ INIT_LINEAR_SYSTEM(init_gpu_biconjugate_gradient) {
 
     check_cuda_error(cudaMalloc((void **)&(persistent_data->d_col), nz * sizeof(int)));
     check_cuda_error(cudaMalloc((void **)&(persistent_data->d_row), (N + 1) * sizeof(int)));
-    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_val), nz * sizeof(float)));
-    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_x), N * sizeof(float)));
-    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_r), N * sizeof(float)));
-    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_rw), N * sizeof(float)));
-    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_p), N * sizeof(float)));
-    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_v), N * sizeof(float)));
-    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_t), N * sizeof(float)));
-    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_Ax), N * sizeof(float)));
+    
+    /* BiCGSTAB uses a fully double-precision matrix/vector path. */
+    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_val_bicg), nz * sizeof(double)));
+    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_x_bicg), N * sizeof(double)));
+    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_r_bicg), N * sizeof(double)));
+    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_rw_bicg), N * sizeof(double)));
+    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_p_bicg), N * sizeof(double)));
+    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_v_bicg), N * sizeof(double)));
+    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_t_bicg), N * sizeof(double)));
+    check_cuda_error(cudaMalloc((void **)&(persistent_data->d_Ax_bicg), N * sizeof(double)));
 
     cudaMemcpy(persistent_data->d_col, J, nz * sizeof(int), cudaMemcpyHostToDevice);      // JA
     cudaMemcpy(persistent_data->d_row, I, (N + 1) * sizeof(int), cudaMemcpyHostToDevice); // IA
-    cudaMemcpy(persistent_data->d_val, val, nz * sizeof(float), cudaMemcpyHostToDevice);  // A
+    
+    /* Convert the float CSR values produced by grid_to_csr() to double once at initialization. */
+    double *val_double = (double *)malloc(sizeof(double) * nz);
+    if (!val_double) {
+        log_error_and_exit("Unable to allocate host memory for the double-precision BiCGSTAB matrix.\n");
+    }
 
-    check_cuda_error(cudaMemset(persistent_data->d_r, 0, N * sizeof(float)));
-    check_cuda_error(cudaMemset(persistent_data->d_rw,0, N * sizeof(float)));
-    check_cuda_error(cudaMemset(persistent_data->d_p, 0, N * sizeof(float)));
-    check_cuda_error(cudaMemset(persistent_data->d_t, 0, N * sizeof(float)));
-    check_cuda_error(cudaMemset(persistent_data->d_v, 0, N * sizeof(float)));
+    OMP(parallel for)
+    for (int i = 0; i < nz; i++) {
+        val_double[i] = (double)val[i];
+    }
+
+    check_cuda_error(cudaMemcpy(persistent_data->d_val_d, val_double, nz * sizeof(double), cudaMemcpyHostToDevice));
+
+    free(val_double);
+
+    check_cuda_error(cudaMemset(persistent_data->d_r_bicg, 0, N * sizeof(double)));
+    check_cuda_error(cudaMemset(persistent_data->d_rw_bicg, 0, N * sizeof(double)));
+    check_cuda_error(cudaMemset(persistent_data->d_p_bicg, 0, N * sizeof(double)));
+    check_cuda_error(cudaMemset(persistent_data->d_t_bicg, 0, N * sizeof(double)));
+    check_cuda_error(cudaMemset(persistent_data->d_v_bicg, 0, N * sizeof(double)));
 
     float *rhs = (float *)malloc(sizeof(float) * num_active_cells);
 
@@ -369,7 +397,13 @@ INIT_LINEAR_SYSTEM(init_gpu_biconjugate_gradient) {
         rhs[i] = active_cells[i]->b;
     }
 
-    check_cuda_error(cudaMemcpy(persistent_data->d_x, rhs, N * sizeof(float), cudaMemcpyHostToDevice)); // Result
+    /* Double-precision copy of the initial guess. */
+    double *h_x_d = (double *)malloc(N * sizeof(double));
+    for (int j = 0; j < N; j++) {
+        h_x_d[j] = (double)rhs[j];
+    }
+    check_cuda_error(cudaMemcpy(persistent_data->d_x_d, h_x_d, N * sizeof(double), cudaMemcpyHostToDevice));
+    free(h_x_d);
 
     free(rhs);
     arrfree(I);
@@ -386,91 +420,133 @@ SOLVE_LINEAR_SYSTEM(gpu_biconjugate_gradient) {
         log_error_and_exit("[ERROR] The gpu_biconjugate_gradient solver needs to be initialized before being called. Add a init_function in the [linear_system_solver] section of the .ini file\n");
     }
 
-    float rho, rhop, beta, alpha, negalpha, omega, negomega, temp, temp2;
-    float nrmr, nrmr0;
-    rho = 0.0f;
-    float zero = 0.0f;
-    float one = 1.0f;
-    float mone = -1.0f;
+    double rho = 0.0, rhop = 0.0;
+    double beta = 0.0, alpha = 1.0, negalpha = 0.0;
+    double omega = 1.0, negomega = 0.0;
+    double temp = 0.0, temp2 = 0.0;
+    double nrmr = 0.0, nrmr0 = 0.0;
+    const double zero = 0.0;
+    const double one = 1.0;
+    const double mone = -1.0;
     int i = 0;
 
-    float *rhs; // Vector B
-    rhs = (float *)malloc(sizeof(float) * num_active_cells);
+    double *rhs = (double *)malloc(sizeof(double) * num_active_cells);
 
     OMP(parallel for)
-    for(uint32_t i = 0; i < num_active_cells; i++) {
-        rhs[i] = active_cells[i]->b;
+    for(uint32_t j = 0; j < num_active_cells; j++) {
+        rhs[j] = (double)active_cells[j]->b;
     }
 
     int N = persistent_data->N;
     int nz = persistent_data->nz;
 
-    cudaMemcpy(persistent_data->d_r, rhs, N * sizeof(float), cudaMemcpyHostToDevice); // B
+    check_cuda_error(cudaMemcpy(persistent_data->d_r_d, rhs, N * sizeof(double), cudaMemcpyHostToDevice));
 
-    // compute initial residual r0=b-Ax0 (using initial guess in x)
-    check_cuda_error(
-        (cudaError_t)cusparseScsrmv(persistent_data->cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, N, N, nz, &one, persistent_data->descr, persistent_data->d_val, persistent_data->d_row, persistent_data->d_col, persistent_data->d_x, &zero, persistent_data->d_Ax));
-    check_cuda_error((cudaError_t)cublasSaxpy(persistent_data->cublasHandle, N, &mone, persistent_data->d_Ax, 1, persistent_data->d_r, 1));
+    /* Compute initial residual r0 = b - A*x0. */
+    check_cuda_error((cudaError_t)cusparseDcsrmv(persistent_data->cusparseHandle,CUSPARSE_OPERATION_NON_TRANSPOSE,N, N, nz,&one,persistent_data->descr,persistent_data->d_val_d,persistent_data->d_row,persistent_data->d_col,persistent_data->d_x_d,&zero,persistent_data->d_Ax_d));
 
-    // copy residual r into r^{\hat} and p
-    check_cuda_error((cudaError_t)cublasScopy(persistent_data->cublasHandle, N, persistent_data->d_r, 1, persistent_data->d_rw, 1));
-    check_cuda_error((cudaError_t)cublasScopy(persistent_data->cublasHandle, N, persistent_data->d_r, 1, persistent_data->d_p, 1));
-    check_cuda_error((cudaError_t)cublasSnrm2(persistent_data->cublasHandle, N, persistent_data->d_r, 1, &nrmr0));
+    check_cuda_error((cudaError_t)cublasDaxpy(persistent_data->cublasHandle,N, &mone,persistent_data->d_Ax_d, 1,persistent_data->d_r_d, 1));
 
+    /* Copy residual into r_hat and p. */
+    check_cuda_error((cudaError_t)cublasDcopy(persistent_data->cublasHandle, N,persistent_data->d_r_d, 1,persistent_data->d_rw_d, 1));
+    check_cuda_error((cudaError_t)cublasDcopy(persistent_data->cublasHandle, N,persistent_data->d_r_d, 1,persistent_data->d_p_d, 1));
+    check_cuda_error((cudaError_t)cublasDnrm2(persistent_data->cublasHandle, N,persistent_data->d_r_d, 1, &nrmr0));
+
+    /* Avoid BiCGSTAB if the initial guess already satisfies Ax=b. */
+    if(nrmr0 <= 0.0) {
+        *number_of_iterations = 0;
+        *error = 0.0;
+
+        OMP(parallel for)
+        for(uint32_t j = 0; j < num_active_cells; j++) {
+            active_cells[j]->v = (real_cpu)rhs[j];
+        }
+
+        free(rhs);
+        return;
+    }
 
     for(i = 0; i < max_its;) {
         rhop = rho;
-        check_cuda_error((cudaError_t)cublasSdot(persistent_data->cublasHandle, N, persistent_data->d_rw, 1, persistent_data->d_r, 1, &rho));
+        check_cuda_error((cudaError_t)cublasDdot(persistent_data->cublasHandle, N,persistent_data->d_rw_d, 1,persistent_data->d_r_d, 1, &rho));
 
         if(i > 0) {
             beta = (rho / rhop) * (alpha / omega);
             negomega = -omega;
-            check_cuda_error((cudaError_t)cublasSaxpy(persistent_data->cublasHandle, N, &negomega, persistent_data->d_v, 1, persistent_data->d_p, 1));
-            check_cuda_error((cudaError_t)cublasSscal(persistent_data->cublasHandle, N, &beta, persistent_data->d_p, 1));
-            check_cuda_error((cudaError_t)cublasSaxpy(persistent_data->cublasHandle, N, &one, persistent_data->d_r, 1, persistent_data->d_p, 1));
+
+            check_cuda_error((cudaError_t)cublasDaxpy(persistent_data->cublasHandle, N, &negomega,persistent_data->d_v_d, 1,persistent_data->d_p_d, 1));
+            check_cuda_error((cudaError_t)cublasDscal(persistent_data->cublasHandle, N, &beta,persistent_data->d_p_d, 1));
+            check_cuda_error((cudaError_t)cublasDaxpy(persistent_data->cublasHandle, N, &one,persistent_data->d_r_d, 1,persistent_data->d_p_d, 1));
         }
 
-        // matrix-vector multiplication
-        check_cuda_error(
-            (cudaError_t)cusparseScsrmv(persistent_data->cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, N, N, nz, &one, persistent_data->descr, persistent_data->d_val, persistent_data->d_row, persistent_data->d_col, persistent_data->d_p, &zero, persistent_data->d_v));
-        check_cuda_error((cudaError_t)cublasSdot(persistent_data->cublasHandle, N, persistent_data->d_rw, 1, persistent_data->d_v, 1, &temp));
-        alpha = rho / temp;
-        negalpha = -(alpha);
-        check_cuda_error((cudaError_t)cublasSaxpy(persistent_data->cublasHandle, N, &negalpha, persistent_data->d_v, 1, persistent_data->d_r, 1));
-        check_cuda_error((cudaError_t)cublasSaxpy(persistent_data->cublasHandle, N, &alpha, persistent_data->d_p, 1, persistent_data->d_x, 1));
-        check_cuda_error((cudaError_t)cublasSnrm2(persistent_data->cublasHandle, N, persistent_data->d_r, 1, &nrmr));
+        /* v = A*p */
+        check_cuda_error((cudaError_t)cusparseDcsrmv(persistent_data->cusparseHandle,CUSPARSE_OPERATION_NON_TRANSPOSE,N, N, nz,&one,persistent_data->descr,persistent_data->d_val_d,persistent_data->d_row,persistent_data->d_col,persistent_data->d_p_d,&zero,persistent_data->d_v_d));
 
-        if(nrmr < tol * nrmr0) {
+        check_cuda_error((cudaError_t)cublasDdot(persistent_data->cublasHandle, N,persistent_data->d_rw_d, 1,persistent_data->d_v_d, 1, &temp));
+
+        alpha = rho / temp;
+        negalpha = -alpha;
+
+        check_cuda_error((cudaError_t)cublasDaxpy(persistent_data->cublasHandle, N, &negalpha,persistent_data->d_v_d, 1,persistent_data->d_r_d, 1));
+        check_cuda_error((cudaError_t)cublasDaxpy(persistent_data->cublasHandle, N, &alpha,persistent_data->d_p_d, 1,persistent_data->d_x_d, 1));
+        check_cuda_error((cudaError_t)cublasDnrm2(persistent_data->cublasHandle, N,persistent_data->d_r_d, 1, &nrmr));
+
+        if(nrmr < ((double)tol * nrmr0)) {
             break;
         }
 
-        // matrix-vector multiplication
-        check_cuda_error((cudaError_t)cusparseScsrmv(persistent_data->cusparseHandle, CUSPARSE_OPERATION_NON_TRANSPOSE, N, N, nz, &one, persistent_data->descr, persistent_data->d_val, persistent_data->d_row, persistent_data->d_col, persistent_data->d_r, &zero, persistent_data->d_t));
+        /* t = A*r */
+        check_cuda_error((cudaError_t)cusparseDcsrmv(persistent_data->cusparseHandle,CUSPARSE_OPERATION_NON_TRANSPOSE,N, N, nz,&one,persistent_data->descr,persistent_data->d_val_d,persistent_data->d_row,persistent_data->d_col,persistent_data->d_r_d,&zero,persistent_data->d_t_d));
 
-        check_cuda_error((cudaError_t)cublasSdot(persistent_data->cublasHandle, N, persistent_data->d_t, 1, persistent_data->d_r, 1, &temp));
-        check_cuda_error((cudaError_t)cublasSdot(persistent_data->cublasHandle, N, persistent_data->d_t, 1, persistent_data->d_t, 1, &temp2));
+        check_cuda_error((cudaError_t)cublasDdot(persistent_data->cublasHandle, N,persistent_data->d_t_d, 1,persistent_data->d_r_d, 1, &temp));
+        check_cuda_error((cudaError_t)cublasDdot(persistent_data->cublasHandle, N,persistent_data->d_t_d, 1,persistent_data->d_t_d, 1, &temp2));
+
         omega = temp / temp2;
-        negomega = -(omega);
-        check_cuda_error((cudaError_t)cublasSaxpy(persistent_data->cublasHandle, N, &omega, persistent_data->d_r, 1, persistent_data->d_x, 1));
-        check_cuda_error((cudaError_t)cublasSaxpy(persistent_data->cublasHandle, N, &negomega,persistent_data-> d_t, 1, persistent_data->d_r, 1));
-        check_cuda_error((cudaError_t)cublasSnrm2(persistent_data->cublasHandle, N, persistent_data->d_r, 1, &nrmr));
+        negomega = -omega;
 
-        if(nrmr < tol * nrmr0) {
+        check_cuda_error((cudaError_t)cublasDaxpy(persistent_data->cublasHandle, N, &omega,persistent_data->d_r_d, 1,persistent_data->d_x_d, 1));
+        check_cuda_error((cudaError_t)cublasDaxpy(persistent_data->cublasHandle, N, &negomega,persistent_data->d_t_d, 1,persistent_data->d_r_d, 1));
+        check_cuda_error((cudaError_t)cublasDnrm2(persistent_data->cublasHandle, N,persistent_data->d_r_d, 1, &nrmr));
+
+        if(nrmr < ((double)tol * nrmr0)) {
             i++;
             break;
         }
         i++;
     }
 
-    cudaMemcpy(rhs, persistent_data->d_x, N * sizeof(float), cudaMemcpyDeviceToHost);
+    check_cuda_error(cudaMemcpy(rhs, persistent_data->d_x_d, N * sizeof(double), cudaMemcpyDeviceToHost));
 
     *number_of_iterations = i - 1;
-    *error = nrmr;
+    *error = (real_cpu)nrmr;
 
     OMP(parallel for)
-    for(uint32_t i = 0; i < num_active_cells; i++) {
-        active_cells[i]->v = rhs[i];
+    for(uint32_t j = 0; j < num_active_cells; j++) {
+        active_cells[j]->v = (real_cpu)rhs[j];
     }
 
     free(rhs);
+}
+
+END_LINEAR_SYSTEM(end_gpu_biconjugate_gradient) {
+
+    struct gpu_persistent_data *persistent_data = (struct gpu_persistent_data *)config->persistent_data;
+
+    if(!persistent_data) return;
+
+    check_cuda_error((cudaError_t)cusparseDestroy(persistent_data->cusparseHandle));
+    check_cuda_error((cudaError_t)cublasDestroy(persistent_data->cublasHandle));
+
+    check_cuda_error(cudaFree(persistent_data->d_col));
+    check_cuda_error(cudaFree(persistent_data->d_row));
+    check_cuda_error(cudaFree(persistent_data->d_val_d));
+    check_cuda_error(cudaFree(persistent_data->d_x_d));
+    check_cuda_error(cudaFree(persistent_data->d_r_d));
+    check_cuda_error(cudaFree(persistent_data->d_rw_d));
+    check_cuda_error(cudaFree(persistent_data->d_p_d));
+    check_cuda_error(cudaFree(persistent_data->d_t_d));
+    check_cuda_error(cudaFree(persistent_data->d_v_d));
+    check_cuda_error(cudaFree(persistent_data->d_Ax_d));
+
+    free(persistent_data);
 }

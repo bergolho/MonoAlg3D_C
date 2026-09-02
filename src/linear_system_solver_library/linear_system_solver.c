@@ -305,22 +305,16 @@ SOLVE_LINEAR_SYSTEM(jacobi) {
     }
 }
 
-//// Berg's code
-SOLVE_LINEAR_SYSTEM(biconjugate_gradient) {
+INIT_LINEAR_SYSTEM(init_cpu_biconjugate_gradient) {
+    GET_PARAMETER_NUMERIC_VALUE_OR_USE_DEFAULT(real_cpu, tol, config, "tolerance");
+    GET_PARAMETER_BOOLEAN_VALUE_OR_USE_DEFAULT(use_preconditioner, config, "use_preconditioner");
+    GET_PARAMETER_NUMERIC_VALUE_OR_USE_DEFAULT(int, max_its, config, "max_iterations");
+}
 
-    if(!bcg_initialized) {
-        GET_PARAMETER_NUMERIC_VALUE_OR_USE_DEFAULT(real_cpu, tol, config, "tolerance");
+END_LINEAR_SYSTEM(end_cpu_biconjugate_gradient) {
+}
 
-        char *preconditioner_char = NULL;
-        GET_PARAMETER_STRING_VALUE_OR_USE_DEFAULT(preconditioner_char, config, "use_preconditioner");
-        if(preconditioner_char != NULL) {
-            use_preconditioner = ((strcmp(preconditioner_char, "yes") == 0) || (strcmp(preconditioner_char, "true") == 0));
-        }
-
-        max_its = 100;
-        GET_PARAMETER_NUMERIC_VALUE_OR_USE_DEFAULT(int, max_its, config, "max_iterations");
-        bcg_initialized = true;
-    }
+SOLVE_LINEAR_SYSTEM(cpu_biconjugate_gradient) {
 
     real_cpu rTr, pTAp, alpha, beta, precision = tol, rTz, r1Tz1;
 
@@ -495,6 +489,54 @@ SOLVE_LINEAR_SYSTEM(biconjugate_gradient) {
     } // end of biconjugate gradient iterations.
 
 } // end biconjugateGradient() function.
+
+INIT_LINEAR_SYSTEM(init_biconjugate_gradient) {
+    bool gpu = false;
+    GET_PARAMETER_BOOLEAN_VALUE_OR_USE_DEFAULT(gpu, config, "use_gpu");
+
+    if(gpu) {
+#ifdef COMPILE_CUDA
+        init_gpu_biconjugate_gradient(config, the_grid, is_purkinje);
+#else
+        init_cpu_biconjugate_gradient(config, the_grid, is_purkinje);
+#endif
+    } else {
+        init_cpu_biconjugate_gradient(config, the_grid, is_purkinje);
+    }
+}
+
+END_LINEAR_SYSTEM(end_biconjugate_gradient) {
+
+    bool gpu = false;
+    GET_PARAMETER_BOOLEAN_VALUE_OR_USE_DEFAULT(gpu, config, "use_gpu");
+
+    if(gpu) {
+#ifdef COMPILE_CUDA
+        end_gpu_biconjugate_gradient(config);
+#else
+        end_cpu_biconjugate_gradient(config);
+#endif
+    } else {
+        end_cpu_biconjugate_gradient(config);
+    }
+}
+
+SOLVE_LINEAR_SYSTEM(biconjugate_gradient) {
+
+    bool gpu = false;
+    GET_PARAMETER_BOOLEAN_VALUE_OR_USE_DEFAULT(gpu, config, "use_gpu");
+
+    if(gpu) {
+#ifdef COMPILE_CUDA
+        gpu_biconjugate_gradient(time_info, config, the_grid, num_active_cells, active_cells, number_of_iterations, error);
+#else
+        log_warn("Cuda runtime not found in this system. Fallbacking to CPU solver!!\n");
+        cpu_biconjugate_gradient(time_info, config, the_grid, num_active_cells, active_cells, number_of_iterations, error);
+#endif
+    } else {
+        cpu_biconjugate_gradient(time_info, config, the_grid, num_active_cells, active_cells, number_of_iterations, error);
+    }
+}
 
 #ifdef AMGX
 
